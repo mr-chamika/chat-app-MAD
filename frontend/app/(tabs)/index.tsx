@@ -215,7 +215,7 @@ const ChatListItem = ({
 }) => (
   <View className="flex-row items-center p-3 border-b border-gray-200 bg-white">
     <TouchableOpacity
-      onPress={() => router.push(`/views/UserProfile/${item.id}`)}
+      onPress={() => router.push(`/views/userProfile/${item.id}`)}
       className="relative mr-4"
     >
       <Image
