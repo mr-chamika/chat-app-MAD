@@ -27,7 +27,7 @@ const ScanQRScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  const userId = '2';
+  const userId = '2';//my id
 
   const isFocused = useIsFocused();
 

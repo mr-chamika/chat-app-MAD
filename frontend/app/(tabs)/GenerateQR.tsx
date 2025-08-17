@@ -19,7 +19,7 @@ const GenerateQRScreen: React.FC = () => {
       </Text>
 
       <QRCode
-        value={'1'}
+        value={'20'}
         size={250}
         backgroundColor="white"
         color="black"

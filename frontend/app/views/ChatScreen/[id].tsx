@@ -375,7 +375,7 @@ const ChatScreen = () => {
 
           const data = await res.json()
 
-          console.log(data)
+          //console.log(data)
           setChat(data)
 
         } else {
