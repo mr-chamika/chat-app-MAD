@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   View,
@@ -10,7 +10,7 @@ import {
   Text,
   Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaFrame } from "react-native-safe-area-context";
 
 export type Message = {
   id: string;
@@ -19,17 +19,22 @@ export type Message = {
 };
 
 export type Chat = {
-  id: string;
+  _id: string;
   userName: string;
-  avatarUrl: string;
   lastMessage: string;
   timestamp: string;
   unreadCount: number;
   isOnline: boolean;
   messages: Message[];
+
+  consent1: boolean;
+  consent2: boolean;
+  lastMessageId: string;
+  participants: string[];
+
 };
 
-const mockMessages: Chat[] = [
+/* const mockMessages: Chat[] = [
   {
     id: "1",
     userName: "Jane Doe",
@@ -294,7 +299,7 @@ const mockMessages: Chat[] = [
     ],
   },
 ];
-
+ */
 const ChatHeader = ({ user }: { user: Chat }) => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -304,7 +309,7 @@ const ChatHeader = ({ user }: { user: Chat }) => {
         <Text className="text-2xl font-bold text-blue-600">‹</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         className="relative"
         onPress={() => router.push(`/views/userProfile/${id}`)}
       >
@@ -315,11 +320,11 @@ const ChatHeader = ({ user }: { user: Chat }) => {
         {user.isOnline && (
           <View className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
         )}
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <View className="flex-1 ml-3">
         <Text className="font-semibold text-base text-gray-800">
-          {user.userName}
+          user {user.participants[0]}
         </Text>
         {user.isOnline && (
           <Text className="text-sm text-green-600">Online</Text>
@@ -343,9 +348,8 @@ const MessageBubble = ({
   const isUser = sender === "user";
   return (
     <View
-      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${
-        isUser ? "bg-blue-500 self-end" : "bg-white self-start"
-      }`}
+      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"
+        }`}
     >
       <Text className={`${isUser ? "text-white" : "text-black"}`}>{text}</Text>
     </View>
@@ -353,9 +357,46 @@ const MessageBubble = ({
 };
 
 const ChatScreen = () => {
+
+  const [chat, setChat] = useState<Chat | null>(null)
+
+
   const { id } = useLocalSearchParams();
 
-  const chat = mockMessages.find((c) => c.id === id);
+  useEffect(() => {
+
+    const getChat = async () => {
+
+      try {
+
+        const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
+
+        if (res) {
+
+          const data = await res.json()
+
+          //console.log(data)
+          setChat(data)
+
+        } else {
+
+          setChat(null)
+
+        }
+
+      } catch (err) {
+
+        console.log("Error from get chat : ", err)
+
+      }
+
+    }
+
+    getChat()
+
+  }, [id])
+
+  //const chat = mockMessages.find((c) => c.id === id);
 
   if (!chat) {
     return (

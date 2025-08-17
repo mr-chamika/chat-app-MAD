@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -9,20 +9,28 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 type Chat = {
-  id: string;
+  _id: string;
   userName: string;
   avatarUrl: string;
   lastMessage: string;
   timestamp: string;
   unreadCount: number;
   isOnline: boolean;
+
+  consent1: boolean;
+  consent2: boolean;
+  lastMessageId: string;
+  participants: string[];
+  createdAt: string;
+
 };
 
-const mockChatList: Chat[] = [
+/* const mockChatList: Chat[] = [
   {
     id: "1",
     userName: "Jane Doe",
@@ -204,8 +212,11 @@ const mockChatList: Chat[] = [
     isOnline: false,
   },
 ];
-
+ */
 const router = useRouter();
+const userId = "2";//my id
+const icon = require('../../assets/images/user2.png')
+
 const ChatListItem = ({
   item,
   onPress,
@@ -215,11 +226,12 @@ const ChatListItem = ({
 }) => (
   <View className="flex-row items-center p-3 border-b border-gray-200 bg-white">
     <TouchableOpacity
-      onPress={() => router.push(`/views/UserProfile/${item.id}`)}
+      onPress={() => router.push(`/views/userProfile/${item._id}`)}
       className="relative mr-4"
     >
       <Image
-        source={{ uri: item.avatarUrl }}
+        //source={{ uri: item.avatarUrl }}
+        source={icon}
         className="w-14 h-14 rounded-full"
       />
       {item.isOnline && (
@@ -227,16 +239,16 @@ const ChatListItem = ({
       )}
     </TouchableOpacity>
     <TouchableOpacity onPress={onPress} className=" flex flex-1 flex-row">
-      <View className="flex-1">
+      <View className="flex-1 gap-3">
         <Text className="font-bold text-base text-gray-800">
           {item.userName}
         </Text>
         <Text className="text-sm text-gray-500" numberOfLines={1}>
-          {item.lastMessage}
+          {item.lastMessage ? item.lastMessage : 'Be the first Messager...'}
         </Text>
       </View>
-      <View className="items-end">
-        <Text className="text-xs text-gray-400 mb-1">{item.timestamp}</Text>
+      <View className="items-end gap-3">
+        <Text className="text-xs text-gray-400 mb-1">{item.timestamp ? item.timestamp : new Date(item.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "numeric" })}</Text>
         {item.unreadCount > 0 && (
           <View className="bg-blue-600 rounded-full w-6 h-6 justify-center items-center">
             <Text className="text-white text-xs font-bold">
@@ -251,8 +263,10 @@ const ChatListItem = ({
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [mockChatList, setMockChatList] = useState<Chat[]>([]);
   const [filteredChats, setFilteredChats] = useState<Chat[]>(mockChatList);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -264,10 +278,46 @@ const Index = () => {
       );
       setFilteredChats(filtered);
     }
-  }, [searchQuery]);
+  }, [searchQuery, mockChatList]);
   const handleNavigateToChat = (chatId: string) => {
     router.push(`/views/ChatScreen/${chatId}`);
   };
+
+
+  const getChatList = async () => {
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
+
+      if (res) {
+
+        const data = await res.json();
+
+        //console.log(data)
+        setMockChatList(data)
+
+      }
+
+    } catch (err) {
+
+      console.log('Error from chatListLoading : ', err)
+      setMockChatList([])
+
+    } finally {
+
+      setIsLoading(false);
+
+    }
+  }
+  useFocusEffect(
+    useCallback(() => {
+
+      getChatList();
+
+
+    }, [])
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100 pb-2">
@@ -293,21 +343,27 @@ const Index = () => {
       </View>
 
       {/* Chat List */}
-      <FlatList
-        data={filteredChats}
-        renderItem={({ item }) => (
-          <ChatListItem
-            item={item}
-            onPress={() => handleNavigateToChat(item.id)}
-          />
-        )}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          <View className="flex-1 justify-center items-center mt-20">
-            <Text className="text-lg text-gray-500">No chats found.</Text>
-          </View>
-        }
-      />
+      {isLoading && mockChatList.length === 0 ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#2563eb" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredChats}
+          renderItem={({ item }) => (
+            <ChatListItem
+              item={item}
+              onPress={() => handleNavigateToChat(item._id)}
+            />
+          )}
+          keyExtractor={(item) => item._id}
+          ListEmptyComponent={
+            <View className="flex-1 justify-center items-center mt-20">
+              <Text className="text-lg text-gray-500">No chats found.</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
