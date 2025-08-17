@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 type Chat = {
   id: string;
@@ -20,9 +20,15 @@ type Chat = {
   timestamp: string;
   unreadCount: number;
   isOnline: boolean;
+
+  consent1: boolean;
+  consent2: boolean;
+  lastMessageId: string;
+  participants: string[];
+
 };
 
-const mockChatList: Chat[] = [
+/* const mockChatList: Chat[] = [
   {
     id: "1",
     userName: "Jane Doe",
@@ -204,8 +210,10 @@ const mockChatList: Chat[] = [
     isOnline: false,
   },
 ];
-
+ */
 const router = useRouter();
+const userId = "1";
+
 const ChatListItem = ({
   item,
   onPress,
@@ -251,6 +259,7 @@ const ChatListItem = ({
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [mockChatList, setMockChatList] = useState<Chat[]>([]);
   const [filteredChats, setFilteredChats] = useState<Chat[]>(mockChatList);
   const [isSearchActive, setIsSearchActive] = useState(false);
 
@@ -268,6 +277,30 @@ const Index = () => {
   const handleNavigateToChat = (chatId: string) => {
     router.push(`/views/ChatScreen/${chatId}`);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+
+      getChatList();
+
+
+    }, [])
+  );
+
+  const getChatList = async () => {
+
+    const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
+
+    if (res) {
+
+      const data = await res.json();
+
+      console.log(data)
+      setMockChatList(data)
+
+    }
+
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100 pb-2">
@@ -303,7 +336,7 @@ const Index = () => {
         )}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          <View className="flex-1 justify-center items-center mt-20">
+          <View className="flex-1 justify-center items-center h-screen-safe-or-10">
             <Text className="text-lg text-gray-500">No chats found.</Text>
           </View>
         }
