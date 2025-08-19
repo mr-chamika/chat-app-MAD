@@ -31,7 +31,6 @@ export type Chat = {
   consent2: boolean;
   lastMessageId: string;
   participants: string[];
-
 };
 
 /* const mockMessages: Chat[] = [
@@ -348,8 +347,9 @@ const MessageBubble = ({
   const isUser = sender === "user";
   return (
     <View
-      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"
-        }`}
+      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${
+        isUser ? "bg-blue-500 self-end" : "bg-white self-start"
+      }`}
     >
       <Text className={`${isUser ? "text-white" : "text-black"}`}>{text}</Text>
     </View>
@@ -357,44 +357,30 @@ const MessageBubble = ({
 };
 
 const ChatScreen = () => {
-
-  const [chat, setChat] = useState<Chat | null>(null)
-
+  const [chat, setChat] = useState<Chat | null>(null);
 
   const { id } = useLocalSearchParams();
 
   useEffect(() => {
-
     const getChat = async () => {
-
       try {
-
-        const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
+        const res = await fetch(`http://10.98.103.11:8080/chat/get?id=${id}`);
 
         if (res) {
-
-          const data = await res.json()
+          const data = await res.json();
 
           //console.log(data)
-          setChat(data)
-
+          setChat(data);
         } else {
-
-          setChat(null)
-
+          setChat(null);
         }
-
       } catch (err) {
-
-        console.log("Error from get chat : ", err)
-
+        console.log("Error from get chat : ", err);
       }
+    };
 
-    }
-
-    getChat()
-
-  }, [id])
+    getChat();
+  }, [id]);
 
   //const chat = mockMessages.find((c) => c.id === id);
 
