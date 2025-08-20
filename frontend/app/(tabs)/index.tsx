@@ -331,12 +331,6 @@ const Index = () => {
           <Text className="text-2xl font-bold text-gray-800">Chats</Text>
         )}
         <TouchableOpacity
-          onPress={() => router.push(`/views/signup`)}
-          className="bg-green-500 p-2 rounded"
-        >
-          <Text className="text-white">Signup</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           onPress={() => setIsSearchActive(!isSearchActive)}
           className="p-2"
         >
