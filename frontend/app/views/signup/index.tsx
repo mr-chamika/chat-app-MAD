@@ -20,7 +20,6 @@ const Signup = () => {
   const router = useRouter();
 
   const handleSignup = () => {
-    // Handle signup logic here
     console.log("Signup Info:", { firstName, lastName, email });
     router.push("/views/otp");
   };
@@ -52,12 +51,15 @@ const Signup = () => {
                   className="w-40 h-40"
                   resizeMode="contain"
                 />
+                <Text className="text-4xl font-bold text-blue-900 text-center mb-4">
+                  Welcome to ChatApp
+                </Text>
+                <Text className="text-lg text-blue-700 text-center px-8 leading-6">
+                  Connect instantly with QR codes. Simple, secure, and fast
+                  messaging.
+                </Text>
               </View>
               <View className="bg-white rounded-3xl p-8 shadow-lg">
-                <Text className="text-4xl font-bold mb-8 text-center text-gray-800">
-                  Welcome!
-                </Text>
-
                 <TextInput
                   className="h-14 border border-gray-200 rounded-xl mb-5 px-4 text-lg bg-gray-50 text-gray-800"
                   placeholder="First Name"
@@ -99,7 +101,6 @@ const Signup = () => {
                   <Text className="text-white font-bold text-lg">Sign Up</Text>
                 </TouchableOpacity>
 
-                {/* Login Link */}
                 <View className="flex-row justify-center mt-8">
                   <Text className="text-lg text-gray-600">
                     Already have an account?{" "}

@@ -18,7 +18,6 @@ const Login = () => {
   const router = useRouter();
 
   const handleLogin = () => {
-    // Handle login logic here
     console.log("Login Info:", { email });
     router.push("/views/otp");
   };
@@ -77,7 +76,6 @@ const Login = () => {
                   <Text className="text-white font-bold text-lg">Login</Text>
                 </TouchableOpacity>
 
-                {/* Signup Link */}
                 <View className="flex-row justify-center mt-8">
                   <Text className="text-lg text-gray-600">
                     Don't have an account?{" "}
