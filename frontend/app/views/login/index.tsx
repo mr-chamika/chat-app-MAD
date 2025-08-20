@@ -18,6 +18,7 @@ const Login = () => {
   const handleLogin = () => {
     // Handle login logic here
     console.log("Login Info:", { email });
+    router.push("/views/otp");
   };
 
   return (

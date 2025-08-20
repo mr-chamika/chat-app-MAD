@@ -20,6 +20,7 @@ const Signup = () => {
   const handleSignup = () => {
     // Handle signup logic here
     console.log("Signup Info:", { firstName, lastName, email });
+    router.push("/views/otp");
   };
 
   return (
