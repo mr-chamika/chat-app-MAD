@@ -39,13 +39,13 @@ const Signup = () => {
             contentContainerStyle={{
               flexGrow: 1,
               justifyContent: "flex-start",
-              paddingTop: 40,
+              paddingTop: 30,
             }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <View className="w-full px-6 py-8">
-              <View className="items-center mb-8">
+              <View className="items-center mb-12">
                 <Image
                   source={require("../../../assets/images/logo.png")}
                   className="w-40 h-40"
