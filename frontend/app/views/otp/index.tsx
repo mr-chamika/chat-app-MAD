@@ -9,6 +9,7 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -73,81 +74,90 @@ const OTPVerification = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F2F0EF]">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <ImageBackground
+        source={require("../../../assets/images/bg3.png")}
         className="flex-1"
+        resizeMode="cover"
       >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
         >
-          <View className="w-full px-6 py-8">
-            <View className="bg-white rounded-3xl p-8 shadow-lg">
-              {/* Header */}
-              <Text className="text-4xl font-bold mb-4 text-center text-gray-800">
-                Verify Email
-              </Text>
-
-              <Text className="text-lg text-gray-600 text-center mb-8 leading-6">
-                We've sent a 6-digit verification code to your email address
-              </Text>
-
-              {/* OTP Input Fields */}
-              <View className="flex-row justify-between mb-8">
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(ref) => (inputRefs.current[index] = ref!)}
-                    className={`w-12 h-14 border-2 rounded-xl text-center text-xl font-bold ${
-                      digit
-                        ? "border-[#4895ef] bg-blue-50"
-                        : "border-gray-200 bg-gray-50"
-                    } text-gray-800`}
-                    value={digit}
-                    onChangeText={(text) =>
-                      handleOtpChange(text.slice(-1), index)
-                    }
-                    onKeyPress={({ nativeEvent }) =>
-                      handleKeyPress(nativeEvent.key, index)
-                    }
-                    keyboardType="numeric"
-                    maxLength={1}
-                    selectTextOnFocus
-                    autoFocus={index === 0}
-                  />
-                ))}
-              </View>
-
-              {/* Verify Button */}
-              <TouchableOpacity
-                className={`py-4 rounded-xl items-center mb-6 shadow-lg ${
-                  isLoading ? "bg-gray-400" : "bg-[#4895ef]"
-                }`}
-                onPress={handleVerifyOTP}
-                disabled={isLoading}
-                activeOpacity={0.8}
-              >
-                <Text className="text-white font-bold text-lg">
-                  {isLoading ? "Verifying..." : "Verify OTP"}
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View className="w-full px-6 py-8">
+              <View className="bg-white rounded-3xl p-8 shadow-lg">
+                {/* Header */}
+                <Text className="text-4xl font-bold mb-4 text-center text-gray-800">
+                  Verify Email
                 </Text>
-              </TouchableOpacity>
 
-              {/* Resend OTP */}
-              <View className="flex-row justify-center">
-                <Text className="text-lg text-gray-600">
-                  Didn't receive the code?{" "}
+                <Text className="text-lg text-gray-600 text-center mb-8 leading-6">
+                  We've sent a 6-digit verification code to your email address
                 </Text>
-                <TouchableOpacity onPress={handleResendOTP} activeOpacity={0.7}>
-                  <Text className="text-lg text-[#4895ef] font-bold">
-                    Resend
+
+                {/* OTP Input Fields */}
+                <View className="flex-row justify-between mb-8">
+                  {otp.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(ref) => (inputRefs.current[index] = ref!)}
+                      className={`w-12 h-14 border-2 rounded-xl text-center text-xl font-bold ${
+                        digit
+                          ? "border-[#4895ef] bg-blue-50"
+                          : "border-gray-200 bg-gray-50"
+                      } text-gray-800`}
+                      value={digit}
+                      onChangeText={(text) =>
+                        handleOtpChange(text.slice(-1), index)
+                      }
+                      onKeyPress={({ nativeEvent }) =>
+                        handleKeyPress(nativeEvent.key, index)
+                      }
+                      keyboardType="numeric"
+                      maxLength={1}
+                      selectTextOnFocus
+                      autoFocus={index === 0}
+                    />
+                  ))}
+                </View>
+
+                {/* Verify Button */}
+                <TouchableOpacity
+                  className={`py-4 rounded-xl items-center mb-6 shadow-lg ${
+                    isLoading ? "bg-gray-400" : "bg-[#4895ef]"
+                  }`}
+                  onPress={handleVerifyOTP}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-white font-bold text-lg">
+                    {isLoading ? "Verifying..." : "Verify OTP"}
                   </Text>
                 </TouchableOpacity>
+
+                {/* Resend OTP */}
+                <View className="flex-row justify-center">
+                  <Text className="text-lg text-gray-600">
+                    Didn't receive the code?{" "}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleResendOTP}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-lg text-[#4895ef] font-bold">
+                      Resend
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
     </SafeAreaView>
   );
 };
