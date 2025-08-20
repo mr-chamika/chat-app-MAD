@@ -18,7 +18,6 @@ const OTPVerification = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Refs for each input to handle focus
   const inputRefs = useRef<TextInput[]>([]);
 
   const handleOtpChange = (text: string, index: number) => {
@@ -26,14 +25,12 @@ const OTPVerification = () => {
     newOtp[index] = text;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleKeyPress = (key: string, index: number) => {
-    // Handle backspace to move to previous input
     if (key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -50,13 +47,10 @@ const OTPVerification = () => {
     setIsLoading(true);
 
     try {
-      // Handle OTP verification logic here
       console.log("OTP Code:", otpCode);
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Navigate to next screen after successful verification
       router.push("/(tabs)");
     } catch (error) {
       Alert.alert("Error", "Invalid OTP. Please try again.");
@@ -66,7 +60,6 @@ const OTPVerification = () => {
   };
 
   const handleResendOTP = () => {
-    // Handle resend OTP logic here
     Alert.alert("OTP Sent", "A new OTP has been sent to your email");
     setOtp(["", "", "", "", "", ""]);
     inputRefs.current[0]?.focus();
@@ -90,7 +83,6 @@ const OTPVerification = () => {
           >
             <View className="w-full px-6 py-8">
               <View className="bg-white rounded-3xl p-8 shadow-lg">
-                {/* Header */}
                 <Text className="text-4xl font-bold mb-4 text-center text-gray-800">
                   Verify Email
                 </Text>
@@ -99,7 +91,6 @@ const OTPVerification = () => {
                   We've sent a 6-digit verification code to your email address
                 </Text>
 
-                {/* OTP Input Fields */}
                 <View className="flex-row justify-between mb-8">
                   {otp.map((digit, index) => (
                     <TextInput
@@ -125,7 +116,6 @@ const OTPVerification = () => {
                   ))}
                 </View>
 
-                {/* Verify Button */}
                 <TouchableOpacity
                   className={`py-4 rounded-xl items-center mb-6 shadow-lg ${
                     isLoading ? "bg-gray-400" : "bg-[#4895ef]"
@@ -139,7 +129,6 @@ const OTPVerification = () => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Resend OTP */}
                 <View className="flex-row justify-center">
                   <Text className="text-lg text-gray-600">
                     Didn't receive the code?{" "}
