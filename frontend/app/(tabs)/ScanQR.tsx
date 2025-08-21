@@ -39,7 +39,8 @@ const ScanQRScreen = () => {
 
       setScanned(true);
 
-      const res = await fetch(`http://10.98.103.38:8080/chat/create?inviteTo=${data}&scan=${userId}`)
+      //const res = await fetch(`http://10.98.103.38:8080/chat/create?inviteTo=${data}&scan=${userId}`)
+      const res = await fetch(`http://localhost:8080/chat/create?inviteTo=${data}&scan=${userId}`)
 
       if (res) {
 

@@ -288,7 +288,8 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
+      //const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
+      const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`)
 
       if (res) {
 
