@@ -27,7 +27,6 @@ type Chat = {
   lastMessageId: string;
   participants: string[];
   createdAt: string;
-
 };
 
 /* const mockChatList: Chat[] = [
@@ -214,8 +213,8 @@ type Chat = {
 ];
  */
 const router = useRouter();
-const userId = "2";//my id
-const icon = require('../../assets/images/user2.png')
+const userId = "2"; //my id
+const icon = require("../../assets/images/user2.png");
 
 const ChatListItem = ({
   item,
@@ -244,11 +243,18 @@ const ChatListItem = ({
           {item.userName}
         </Text>
         <Text className="text-sm text-gray-500" numberOfLines={1}>
-          {item.lastMessage ? item.lastMessage : 'Be the first Messager...'}
+          {item.lastMessage ? item.lastMessage : "Be the first Messager..."}
         </Text>
       </View>
       <View className="items-end gap-3">
-        <Text className="text-xs text-gray-400 mb-1">{item.timestamp ? item.timestamp : new Date(item.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "numeric" })}</Text>
+        <Text className="text-xs text-gray-400 mb-1">
+          {item.timestamp
+            ? item.timestamp
+            : new Date(item.createdAt).toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "numeric",
+            })}
+        </Text>
         {item.unreadCount > 0 && (
           <View className="bg-blue-600 rounded-full w-6 h-6 justify-center items-center">
             <Text className="text-white text-xs font-bold">
@@ -283,40 +289,28 @@ const Index = () => {
     router.push(`/views/ChatScreen/${chatId}`);
   };
 
-
   const getChatList = async () => {
-
     setIsLoading(true);
     try {
       //const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
       const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`)
 
       if (res) {
-
         const data = await res.json();
 
         //console.log(data)
-        setMockChatList(data)
-
+        setMockChatList(data);
       }
-
     } catch (err) {
-
-      console.log('Error from chatListLoading : ', err)
-      setMockChatList([])
-
+      console.log("Error from chatListLoading : ", err);
+      setMockChatList([]);
     } finally {
-
       setIsLoading(false);
-
     }
-  }
+  };
   useFocusEffect(
     useCallback(() => {
-
       getChatList();
-
-
     }, [])
   );
 

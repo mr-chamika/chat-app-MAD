@@ -35,7 +35,6 @@ export type Chat = {
   consent2: boolean;
   lastMessageId: string;
   participants: string[];
-
 };
 
 const router = useRouter();
@@ -369,34 +368,24 @@ const ChatScreen = () => {
   const { id } = useLocalSearchParams();
 
   useEffect(() => {
-
     const getChat = async () => {
-
       try {
 
         //const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
         const res = await fetch(`http://localhost:8080/chat/get?id=${id}`)
 
         if (res) {
-
-          const data = await res.json()
+          const data = await res.json();
 
           //console.log(data)
-          setChat(data)
-
+          setChat(data);
         } else {
-
-          setChat(null)
-
+          setChat(null);
         }
-
       } catch (err) {
-
-        console.log("Error from get chat : ", err)
-
+        console.log("Error from get chat : ", err);
       }
-
-    }
+    };
 
     getChat()
     getChats()
