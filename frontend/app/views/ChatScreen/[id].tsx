@@ -481,7 +481,7 @@ const ChatScreen = () => {
             <MessageBubble text={item.text} sender={item.senderId} />
           )}
           keyExtractor={(item) => item._id}
-          className="flex-1"
+          className="flex-1 overflow-hidden"
           inverted
         />
 

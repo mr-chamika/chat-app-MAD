@@ -98,7 +98,7 @@ const MyProfileScreen = () => {
         </View>
 
         <View className="p-4 mt-8 mb-4">
-          <TouchableOpacity className="bg-red-500/10 py-3 rounded-full items-center">
+          <TouchableOpacity className="bg-red-500/10 py-3 rounded-full items-center" onPress={() => router.replace('/(auth)')}>
             <Text className="text-red-500 font-bold text-base">Logout</Text>
           </TouchableOpacity>
         </View>
