@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   View,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   FlatList,
   Text,
   Image,
@@ -13,9 +11,15 @@ import {
 import { SafeAreaView, useSafeAreaFrame } from "react-native-safe-area-context";
 
 export type Message = {
-  id: string;
+  _id: string;
   text: string;
-  sender: "user" | "other";
+  chatId: string;
+  senderId: string;
+  status: "sent" | "delivered" | "read";
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+
 };
 
 export type Chat = {
@@ -31,8 +35,9 @@ export type Chat = {
   consent2: boolean;
   lastMessageId: string;
   participants: string[];
-
 };
+
+const router = useRouter();
 
 /* const mockMessages: Chat[] = [
   {
@@ -301,8 +306,6 @@ export type Chat = {
 ];
  */
 const ChatHeader = ({ user }: { user: Chat }) => {
-  const router = useRouter();
-  const { id } = useLocalSearchParams();
   return (
     <View className="flex-row items-center p-2 bg-white border-b border-gray-200 shadow-sm">
       <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2">
@@ -343,9 +346,9 @@ const MessageBubble = ({
   sender,
 }: {
   text: string;
-  sender: "user" | "other";
+  sender: string;
 }) => {
-  const isUser = sender === "user";
+  const isUser = sender === '6874baf06bb6ef13073a1236';
   return (
     <View
       className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"
@@ -359,42 +362,67 @@ const MessageBubble = ({
 const ChatScreen = () => {
 
   const [chat, setChat] = useState<Chat | null>(null)
-
+  const [message, setMessage] = useState('')
+  const [messageList, setMessageList] = useState<Message[]>([])
 
   const { id } = useLocalSearchParams();
 
   useEffect(() => {
-
     const getChat = async () => {
-
       try {
 
-        const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
+        //const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
+        const res = await fetch(`http://localhost:8080/chat/get?id=${id}`)
 
         if (res) {
-
-          const data = await res.json()
+          const data = await res.json();
 
           //console.log(data)
-          setChat(data)
+          setChat(data);
+        } else {
+          setChat(null);
+        }
+      } catch (err) {
+        console.log("Error from get chat : ", err);
+      }
+    };
+
+    getChat()
+    getChats()
+
+
+  }, [id])
+
+  const getChats = async () => {
+
+    try {
+
+      const res = await fetch(`http://localhost:8080/message/get?id=${id}`)
+
+      if (res.ok) {
+
+        const data = await res.json()
+
+        if (data.length > 0) {
+
+          setMessageList(data.reverse())
 
         } else {
 
-          setChat(null)
+          setMessageList([]);
 
         }
 
-      } catch (err) {
-
-        console.log("Error from get chat : ", err)
-
       }
+
+    } catch (error) {
+
+      console.log('Error from chatList loading useForcusEffect : ', error)
+      setMessageList([]);
 
     }
 
-    getChat()
-
-  }, [id])
+  }
 
   //const chat = mockMessages.find((c) => c.id === id);
 
@@ -406,20 +434,62 @@ const ChatScreen = () => {
     );
   }
 
+  const createMessage = async () => {
+
+    try {
+
+      const newMessage = {
+
+        chatId: id,
+        text: message,
+        senderId: '6874baf06bb6ef13073a1236'
+
+      }
+
+      const res = await fetch(`http://localhost:8080/message/create`, {
+
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMessage)
+
+      })
+
+      if (res.ok) {
+
+        const data = await res.json()
+
+        setMessage('');
+        setMessageList(prevMessages => [data, ...prevMessages])
+
+      }
+
+    } catch (err) {
+
+      console.log('Error from message create : ', err);
+    }
+
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-200">
       <ChatHeader user={chat} />
 
       <View className="flex-1 p-3">
-        <FlatList
-          data={chat.messages}
+        {messageList.length > 0 ? <FlatList
+          data={messageList}
           renderItem={({ item }) => (
-            <MessageBubble text={item.text} sender={item.sender} />
+            <MessageBubble text={item.text} sender={item.senderId} />
           )}
-          keyExtractor={(item) => item.id}
-          className="flex-1"
+          keyExtractor={(item) => item._id}
+          className="flex-1 overflow-hidden"
           inverted
         />
+
+          :
+          <View className=" w-full h-full items-center justify-center">
+            <Text>No messages yet</Text>
+          </View>
+        }
       </View>
 
       <View className="flex-row items-center p-3 border-t border-gray-300 bg-white">
@@ -427,8 +497,16 @@ const ChatScreen = () => {
           className="flex-1 h-10 bg-gray-100 rounded-2xl px-4 mr-2"
           placeholder="Type a message..."
           placeholderTextColor="#999"
+          onChangeText={setMessage}
+          value={message}
         />
-        <TouchableOpacity className="bg-blue-600 rounded-full p-3">
+        <TouchableOpacity
+
+          onPress={createMessage}
+          className={` rounded-full p-3 ${message.trim() === '' ? 'bg-blue-300' : 'bg-blue-600'}`}
+          disabled={message.trim() === ''}
+        >
+
           <Text className="text-white text-base">Send</Text>
         </TouchableOpacity>
       </View>

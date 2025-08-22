@@ -11,8 +11,7 @@ import {
 import { useIsFocused } from "@react-navigation/native";
 
 const ScanQRScreen = () => {
-
-  const router = useRouter()
+  const router = useRouter();
 
   if (Platform.OS === "web") {
     return (
@@ -27,48 +26,52 @@ const ScanQRScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  const userId = '2';//my id
+  const userId = "2"; //my id
 
   const isFocused = useIsFocused();
 
-  const handleBarCodeScanned = async ({ type, data }: BarcodeScanningResult) => {
-
+  const handleBarCodeScanned = async ({
+    type,
+    data,
+  }: BarcodeScanningResult) => {
     try {
-
-
-
       setScanned(true);
 
-      const res = await fetch(`http://10.98.103.38:8080/chat/create?inviteTo=${data}&scan=${userId}`)
+      //const res = await fetch(`http://10.98.103.38:8080/chat/create?inviteTo=${data}&scan=${userId}`)
+      const res = await fetch(`http://localhost:8080/chat/create?inviteTo=${data}&scan=${userId}`)
 
       if (res) {
-
-        const datax = await res.text()
+        const datax = await res.text();
 
         if (datax) {
-
           console.log(`Scanned QR Code of type ${type} with data: ${data}`);
-          router.push(`/views/ChatScreen/${datax}`)
-          setScanned(false)
-
+          router.push(`/views/ChatScreen/${datax}`);
+          setScanned(false);
         } else {
-
           Alert.alert("QR Code Scanned!", `Data: ${datax}`, [
             { text: "Scan Again", onPress: () => setScanned(false) },
-            { text: "Cancel", onPress: () => { setScanned(false); router.back() } },
+            {
+              text: "Cancel",
+              onPress: () => {
+                setScanned(false);
+                router.back();
+              },
+            },
           ]);
-
         }
       }
-
     } catch (err) {
-
-      console.log('Error from creating a chat : ', err)
-      Alert.alert("Check your backend connection", '', [
+      console.log("Error from creating a chat : ", err);
+      Alert.alert("Check your backend connection", "", [
         { text: "Scan Again", onPress: () => setScanned(false) },
-        { text: "Cancel", onPress: () => { setScanned(false); router.back() } },
+        {
+          text: "Cancel",
+          onPress: () => {
+            setScanned(false);
+            router.back();
+          },
+        },
       ]);
-
     }
   };
 
