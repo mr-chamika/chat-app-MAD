@@ -292,8 +292,8 @@ const Index = () => {
   const getChatList = async () => {
     setIsLoading(true);
     try {
-      //const res = await fetch(`http://10.98.103.38:8080/chat/list?id=${userId}`)
-      const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`)
+      const res = await fetch(`http://192.168.134.38:8080/chat/list?id=${userId}`)
+      //const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`)
 
       if (res) {
         const data = await res.json();
