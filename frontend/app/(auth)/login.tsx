@@ -81,7 +81,7 @@ const Login = () => {
   return (
     <View className={` ${Platform.OS === 'web' ? 'h-screen overflow-auto' : 'flex-1'}`}>
 
-      <SafeAreaView className="h-full" edges={["top", "bottom"]}>
+      <SafeAreaView className="h-full">
         <View className="h-full bg-[#ffffff]">
 
           <ImageBackground
