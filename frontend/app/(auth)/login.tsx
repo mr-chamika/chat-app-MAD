@@ -8,7 +8,7 @@ import {
   Platform,
   Alert
 } from "react-native";
-
+import emailjs from '@emailjs/browser'
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { router } from "expo-router";
@@ -16,21 +16,24 @@ import { router } from "expo-router";
 import { Image, ImageBackground } from 'expo-image'
 import { cssInterop } from 'nativewind'
 cssInterop(Image, { className: "style" });
-
+import { jwtDecode } from 'jwt-decode'
 
 const Login = () => {
   // --- State for both Signup and OTP steps ---
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState({ code: '', timestamp: 0 });
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const [email, setEmail] = useState("");
   const [step, setStep] = useState(0)
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+
     console.log("Login Info:", { email });
-    setStep(step + 1)
+    handleSendOtp();
+
   };
 
   const handleOtpChange = (text: string, index: number) => {
@@ -57,11 +60,42 @@ const Login = () => {
 
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (otpCode === generatedOtp.code) {
 
-    if (otpCode === "123456") {
+      try {
 
-      Alert.alert("Success!", "Your email has been verified successfully.");
-      router.push("/(tabs)");
+        const res = await fetch('http://localhost:8080/user/login', {
+
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ "email": email })
+
+        });
+
+        if (res.ok) {
+          const data = await res.json()
+
+          if (data && data.token) {
+
+            console.log(jwtDecode(data.token))
+            Alert.alert("Success!", "Your email has been verified successfully.");
+            router.push("/(tabs)");
+
+          } else {
+
+            alert('Register First...')
+
+          }
+
+        }
+      } catch (err) {
+
+        alert(`Network error : ${err}`)
+
+      }
+
+
+
 
     } else {
       Alert.alert("Error", "Invalid OTP. Please try again.");
@@ -75,6 +109,35 @@ const Login = () => {
     Alert.alert("OTP Sent", "A new OTP has been sent to your email");
     setOtp(["", "", "", "", "", ""]);
     inputRefs.current[0]?.focus();
+  };
+
+  const handleSendOtp = async () => {
+    setIsLoading(true);
+    const newOtp = Math.floor(100000 + Math.random() * 9000).toString();
+    setGeneratedOtp({ code: newOtp, timestamp: Date.now() });
+    const templateParams = {
+      to_name: email,
+      email: email,
+      otp_code: newOtp,
+    };
+
+    try {
+      await emailjs.send(
+        'service_h0e38l2',
+        'template_crl1nc9',
+        templateParams,
+        {
+          publicKey: 'Xav8YamG7K9e8q0nD'
+        }
+      );
+      alert(`A verification code has been sent to ${email}.`);
+      setStep(1);
+    } catch (error) {
+      console.error('EmailJS Error:', error);
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 

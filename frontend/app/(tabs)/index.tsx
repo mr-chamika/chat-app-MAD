@@ -227,7 +227,7 @@ const Index = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              _id: chat._id,
+
               participants: JSON.parse(chat.participants),
               lastMessageId: chat.lastMessageId,
               status: !!chat.status,
@@ -243,9 +243,12 @@ const Index = () => {
 
           if (res.ok) {
             // Only mark the chat as synced locally
+
+            const newId = await res.text()
+
             await db.executeSql(
-              "UPDATE chats SET isSynced = 1 WHERE _id = ?",
-              [chat._id]
+              "UPDATE chats SET _id = ?, isSynced = 1 WHERE _id = ?",
+              [newId, chat._id] // The first '?' is the new ID, the second is the old ID
             );
             console.log("Synced chat to MongoDB:", chat._id);
           } else {
