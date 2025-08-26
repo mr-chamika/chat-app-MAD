@@ -1,3 +1,4 @@
+import 'setimmediate'; // Polyfill for setImmediate
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -10,210 +11,141 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { enablePromise, openDatabase, SQLiteDatabase } from 'react-native-sqlite-storage';
+import NetInfo from '@react-native-community/netinfo';
 
-type Chat = {
+// --- Type Definitions ---
+export type Message = {
+  _id: string;
+  text: string;
+  chatId: string;
+  senderId: string;
+  status: "sent" | "delivered" | "read";
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Chat = {
   _id: string;
   userName: string;
   avatarUrl: string;
-  lastMessage: string;
-  timestamp: string;
+  lastMessage: string | null;
+  timestamp: string | null;
   unreadCount: number;
   isOnline: boolean;
-
   consent1: boolean;
   consent2: boolean;
-  lastMessageId: string;
+  lastMessageId: string | null;
   participants: string[];
   createdAt: string;
+  updatedAt: string;
+  // Added isSynced field to track sync status
+  isSynced: boolean;
 };
 
-/* const mockChatList: Chat[] = [
-  {
-    id: "1",
-    userName: "Jane Doe",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
-    lastMessage: "Looks cool! Can you send me the files?",
-    timestamp: "10:45 AM",
-    unreadCount: 2,
-    isOnline: true,
-  },
-  {
-    id: "2",
-    userName: "John Smith",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026705d",
-    lastMessage: "See you tomorrow at the meeting!",
-    timestamp: "9:30 AM",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "3",
-    userName: "Alex Ray",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026706d",
-    lastMessage: "Okay, sounds good. I will check it out.",
-    timestamp: "Yesterday",
-    unreadCount: 5,
-    isOnline: true,
-  },
-  {
-    id: "4",
-    userName: "Sarah Conner",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026707d",
-    lastMessage: "Haha, that is hilarious!",
-    timestamp: "Yesterday",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "5",
-    userName: "Mike Ross",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026708d",
-    lastMessage: "Did you get the documents I sent?",
-    timestamp: "Sun",
-    unreadCount: 1,
-    isOnline: true,
-  },
-  {
-    id: "6",
-    userName: "Emily Carter",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026709d",
-    lastMessage: "Let's catch up later this week.",
-    timestamp: "Sun",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "7",
-    userName: "Tech Group",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026710d",
-    lastMessage: "Alex: Don't forget the deadline!",
-    timestamp: "Fri",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "8",
-    userName: "David Chen",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026711d",
-    lastMessage: "Thanks for your help!",
-    timestamp: "Fri",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "9",
-    userName: "Olivia Martinez",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026712d",
-    lastMessage: "I have a question about the project.",
-    timestamp: "Thu",
-    unreadCount: 3,
-    isOnline: false,
-  },
-  {
-    id: "10",
-    userName: "Ben Taylor",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026713d",
-    lastMessage: "Can you review my code?",
-    timestamp: "Thu",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "11",
-    userName: "Chloe Wilson",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026714d",
-    lastMessage: "Happy Birthday! 🎉",
-    timestamp: "Wed",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "12",
-    userName: "Daniel Brown",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026715d",
-    lastMessage: "Are you free for a quick call?",
-    timestamp: "Wed",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "13",
-    userName: "Sophia Garcia",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026716d",
-    lastMessage: "No problem!",
-    timestamp: "Tue",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "14",
-    userName: "Marketing Team",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026717d",
-    lastMessage: "Jane: New campaign brief is up.",
-    timestamp: "Tue",
-    unreadCount: 1,
-    isOnline: false,
-  },
-  {
-    id: "15",
-    userName: "James Johnson",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026718d",
-    lastMessage: "You too!",
-    timestamp: "Mon",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "16",
-    userName: "Isabella Rodriguez",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026719d",
-    lastMessage: "Typing...",
-    timestamp: "Mon",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "17",
-    userName: "William Lee",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026720d",
-    lastMessage: "Let me know what you think.",
-    timestamp: "7/20/2025",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "18",
-    userName: "Mia Hernandez",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026721d",
-    lastMessage: "Sent the invoice.",
-    timestamp: "7/19/2025",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "19",
-    userName: "Ethan Gonzalez",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026722d",
-    lastMessage: "Perfect, thank you!",
-    timestamp: "7/18/2025",
-    unreadCount: 0,
-    isOnline: true,
-  },
-  {
-    id: "20",
-    userName: "Ava Perez",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026723d",
-    lastMessage: "See you there.",
-    timestamp: "7/17/2025",
-    unreadCount: 0,
-    isOnline: false,
-  },
-];
- */
+// --- Modernized Database Setup ---
+enablePromise(true);
+
+const getDBConnection = async () => {
+  try {
+    const db = await openDatabase({ name: 'chatApp.db', location: 'default' });
+    console.log("Database connection successful!");
+    return db;
+  } catch (error) {
+    console.error("Failed to open database:", error);
+    return null;
+  }
+};
+
+const initDB = async (db: SQLiteDatabase) => {
+  // Added 'isSynced' column to the chats table
+  const chatTableQuery = `CREATE TABLE IF NOT EXISTS chats (
+  _id TEXT PRIMARY KEY NOT NULL,
+  participants TEXT,
+  lastMessageId TEXT,
+  status INTEGER,
+  isOnline INTEGER,
+  userName TEXT,
+  consent1 INTEGER,
+  consent2 INTEGER,
+  unreadCount INTEGER,
+  createdAt TEXT,
+  updatedAt TEXT,
+  isSynced INTEGER DEFAULT 0
+);`;
+  const messageTableQuery = `CREATE TABLE IF NOT EXISTS messages (
+    _id TEXT PRIMARY KEY NOT NULL,
+    chatId TEXT NOT NULL,
+    text TEXT,
+    senderId TEXT,
+    status INTEGER,
+    isDelted INTEGER,
+    createdAt TEXT,
+    updatedAt TEXT
+  );`;
+  await db.executeSql(chatTableQuery);
+  await db.executeSql(messageTableQuery);
+};
+
+const saveChatsToDB = async (db: SQLiteDatabase, chats: Chat[]) => {
+  await db.transaction(async tx => {
+    for (const chat of chats) {
+      // The INS--ERT query now matches the CREATE TABLE query
+      const query = `INSERT OR REPLACE INTO chats 
+  (_id, participants, lastMessageId, status, isOnline, userName, consent1, consent2, unreadCount, createdAt, updatedAt, isSynced) 
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      const params = [
+        chat._id,
+        JSON.stringify(chat.participants),
+        chat.lastMessageId || null,
+        (chat as any).status ? 1 : 0,
+        chat.isOnline ? 1 : 0,
+        chat.userName,
+        chat.consent1 ? 1 : 0,
+        chat.consent2 ? 1 : 0,
+        chat.unreadCount,
+        chat.createdAt,
+        chat.updatedAt,
+        chat.isSynced ? 1 : 0
+      ];
+      await tx.executeSql(query, params);
+    }
+  });
+};
+const loadChatsFromDB = async (db: SQLiteDatabase) => {
+  try {
+    const [results] = await db.executeSql('SELECT * FROM chats ORDER BY createdAt DESC', []);
+    const chats: Chat[] = [];
+    for (let i = 0; i < results.rows.length; i++) {
+      const item = results.rows.item(i);
+      if (item) {
+        chats.push({
+          ...item,
+          isOnline: !!item.isOnline,
+          consent1: !!item.consent1,
+          consent2: !!item.consent2,
+          status: !!item.status,
+          participants: JSON.parse(item.participants),
+          unreadCount: item.unreadCount,
+          isSynced: !!item.isSynced,
+        });
+      }
+    }
+    return chats;
+  } catch (error) {
+    console.error("Failed to load chats from DB", error);
+    return [];
+  }
+};
+
+// --- UI Components ---
 const router = useRouter();
-const userId = "2"; //my id
+const userId = "2";
 const icon = require("../../assets/images/user2.png");
 
 const ChatListItem = ({
@@ -243,17 +175,17 @@ const ChatListItem = ({
           {item.userName}
         </Text>
         <Text className="text-sm text-gray-500" numberOfLines={1}>
-          {item.lastMessage ? item.lastMessage : "Be the first Messager..."}
+          {item.lastMessageId ? item.lastMessageId : "Be the first Messager..."}
         </Text>
       </View>
       <View className="items-end gap-3">
         <Text className="text-xs text-gray-400 mb-1">
-          {item.timestamp
-            ? item.timestamp
-            : new Date(item.createdAt).toLocaleTimeString([], {
+          {item.createdAt
+            ? new Date(item.createdAt).toLocaleTimeString([], {
               hour: "numeric",
               minute: "numeric",
-            })}
+            })
+            : "No date"}
         </Text>
         {item.unreadCount > 0 && (
           <View className="bg-blue-600 rounded-full w-6 h-6 justify-center items-center">
@@ -267,12 +199,93 @@ const ChatListItem = ({
   </View>
 );
 
+// --- Main Chat List Component ---
 const Index = () => {
+  const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [mockChatList, setMockChatList] = useState<Chat[]>([]);
   const [filteredChats, setFilteredChats] = useState<Chat[]>(mockChatList);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [offline, setOffline] = useState(false)
+
+  // Added syncChatsToServer functi
+  const syncChatsToServer = async () => {
+    if (!db) return;
+
+    try {
+      // Get all offline/unsynced chats from SQLite
+      const [results] = await db.executeSql(
+        "SELECT * FROM chats WHERE isSynced = 0"
+      );
+
+      for (let i = 0; i < results.rows.length; i++) {
+        const chat = results.rows.item(i);
+
+        try {
+          const res = await fetch("http://localhost:8080/chat/creates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+
+              participants: JSON.parse(chat.participants),
+              lastMessageId: chat.lastMessageId,
+              status: !!chat.status,
+              isOnline: !!chat.isOnline,
+              userName: chat.userName,
+              consent1: !!chat.consent1,
+              consent2: !!chat.consent2,
+              unreadCount: chat.unreadCount,
+              createdAt: chat.createdAt,
+              updatedAt: chat.updatedAt,
+            }),
+          });
+
+          if (res.ok) {
+            // Only mark the chat as synced locally
+
+            const newId = await res.text()
+
+            await db.executeSql(
+              "UPDATE chats SET _id = ?, isSynced = 1 WHERE _id = ?",
+              [newId, chat._id] // The first '?' is the new ID, the second is the old ID
+            );
+            console.log("Synced chat to MongoDB:", chat._id);
+          } else {
+            console.log("Sync failed for chat", chat._id, res.status);
+          }
+        } catch (err) {
+          console.log("Sync failed for chat", chat._id, err);
+        }
+      }
+
+    } catch (err) {
+      console.error("Error fetching unsynced chats:", err);
+    }
+  };
+
+  // Added nework listener to sync when online
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+
+      if (state.isConnected) {
+        syncChatsToServer();
+      }
+    });
+    return () => unsubscribe();
+  }, [db]); // Added db as a depende
+
+  // Initialize the database connection
+  useEffect(() => {
+    const initializeDB = async () => {
+      const dbConnection = await getDBConnection();
+      if (dbConnection) {
+        await initDB(dbConnection);
+        setDb(dbConnection);
+      }
+    };
+    initializeDB();
+  }, []);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -285,28 +298,65 @@ const Index = () => {
       setFilteredChats(filtered);
     }
   }, [searchQuery, mockChatList]);
+
   const handleNavigateToChat = (chatId: string) => {
     router.push(`/views/ChatScreen/${chatId}`);
   };
 
   const getChatList = async () => {
     setIsLoading(true);
-    try {
-      const res = await fetch(`http://192.168.134.38:8080/chat/list?id=${userId}`)
-      //const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`)
 
-      if (res) {
-        const data = await res.json();
-
-        //console.log(data)
-        setMockChatList(data);
+    // Wait for the database state to be set before proceeding
+    // This prevents the "Database is not ready" warning
+    let database = db;
+    if (!database) {
+      console.log("Waiting for database connection...");
+      database = await getDBConnection();
+      if (!database) {
+        console.warn("Database connection failed. Cannot load chats.");
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
-      console.log("Error from chatListLoading : ", err);
-      setMockChatList([]);
-    } finally {
-      setIsLoading(false);
+      setDb(database);
     }
+
+    const networkState = await NetInfo.fetch();
+
+    if (networkState.isConnected) {
+      console.log("Online: Fetching chat list from server...");
+      try {
+        const res = await fetch(`http://localhost:8080/chat/list?id=${userId}`);
+
+
+        if (!res.ok) {//
+          console.log(`Server returned status: ${res.status}`);
+
+        }
+
+        const data = await res.json();
+        setMockChatList(data);
+        // await saveChatsToDB(database, data);
+        // console.log("Chats fetched from server and saved to local DB.");
+        setOffline(false);
+
+      } catch (err: any) { // Use 'fany to access= the error message
+        console.log("Server fetch failed, falling back to local DB...", err);
+        const localChats = await loadChatsFromDB(database);
+        setMockChatList(localChats);
+        console.log("Loaded chats from local DB:", localChats);
+
+        // Provide a speciic alert for the user
+        //Alert.alert("Server Error", err.message || "Could not connect to the server. Displaying local chats.");
+        setOffline(true);
+      }
+    } else {
+      console.log("Offline: Loading chat list from local database.");
+      const localChats = await loadChatsFromDB(database);
+      setMockChatList(localChats);
+      setOffline(true);
+    }//
+
+    setIsLoading(false);
   };
   useFocusEffect(
     useCallback(() => {
@@ -327,7 +377,10 @@ const Index = () => {
             autoFocus
           />
         ) : (
-          <Text className="text-2xl font-bold text-gray-800">Chats</Text>
+          <View className='flex-row gap-5'>
+            <Text className="text-2xl font-bold text-gray-800">Chats</Text>
+            <Text className="text-md font-bold text-gray-400 self-center">{offline ? 'Offline' : 'Online'}</Text>
+          </View>
         )}
         <TouchableOpacity
           onPress={() => setIsSearchActive(!isSearchActive)}
