@@ -316,7 +316,7 @@ const Index = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100 pb-2">
-      {/* Header */}
+
       <View className="flex-row justify-between items-center p-4 bg-white border-b border-gray-200">
         {isSearchActive ? (
           <TextInput
