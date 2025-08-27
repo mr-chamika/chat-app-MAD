@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Alert, Platform, Button, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Platform, Button, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import {
   CameraView,
@@ -7,10 +7,9 @@ import {
   BarcodeScanningResult,
 } from "expo-camera";
 import { useIsFocused } from "@react-navigation/native";
-import NetInfo from "@react-native-community/netinfo"
-import SQLite from "react-native-sqlite-storage";
+import NetInfo from "@react-native-community/netinfo";
+import { SQLiteDatabase } from 'react-native-sqlite-storage';
 
-SQLite.enablePromise(true);
 // Define the shape of the Chat object
 export type Chat = {
   _id: string;
@@ -24,26 +23,16 @@ export type Chat = {
   unreadCount: number;
   createdAt: string;
   updatedAt: string;
-  isSynced: boolean
+  isSynced: boolean;
 };
-
-export const getDBConnection = async () => {
-  try {
-    const db = await SQLite.openDatabase(
-      { name: "chat.db", location: "default" }
-    );
-    console.log("✅ DB Connected");
-    return db;
-  } catch (error) {
-    console.error("❌ DB connection error:", error);
-    throw error;
-  }
-};
-
 
 // Function to save a chat object to the local database
-// This function assumes `db` will be null on web, and valid on native.
-const saveChatToDB = async (db: any, chat: Chat) => {
+const saveChatToDB = async (db: SQLiteDatabase | null, chat: Chat) => {
+  // Add a check to ensure db is not null
+  if (!db) {
+    console.error("❌ Database is not initialized. Cannot save chat.");
+    return;
+  }
   try {
     await db.executeSql(
       `INSERT OR REPLACE INTO chats
@@ -51,7 +40,7 @@ const saveChatToDB = async (db: any, chat: Chat) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
       [
         chat._id,
-        JSON.stringify(chat.participants), // ✅ store as JSON string
+        JSON.stringify(chat.participants),
         chat.lastMessageId,
         chat.status ? 1 : 0,
         chat.isOnline ? 1 : 0,
@@ -61,7 +50,7 @@ const saveChatToDB = async (db: any, chat: Chat) => {
         chat.unreadCount,
         chat.createdAt,
         chat.updatedAt,
-        chat.isSynced ?? 0
+        chat.isSynced ? 1 : 0
       ]
     );
     console.log("✅ Chat inserted:", chat._id);
@@ -70,23 +59,19 @@ const saveChatToDB = async (db: any, chat: Chat) => {
   }
 };
 
-
 // --- Main Component ---
 const ScanQRScreen = () => {
   const router = useRouter();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [db, setDb] = useState<any>(null); // State to hold the database connection
-  const [isLoading, setIsLoading] = useState(false); // New state for loading indicator
+  const [db, setDb] = useState<SQLiteDatabase | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // TODO: This should be replaced with the actual logged-in user's ID
-  const userId = "2";
-
+  const userId = "2"; // TODO: Replace with actual logged-in user's ID
 
   const syncChatsToServer = async () => {
-    const db = await getDBConnection();
-    if (!db) return;
+    if (!db) return; // This check is important
     try {
       const [results] = await db.executeSql("SELECT * FROM chats WHERE isSynced = 0", []);
       for (let i = 0; i < results.rows.length; i++) {
@@ -122,32 +107,40 @@ const ScanQRScreen = () => {
           } else {
             console.log(`Sync failed for chat ${chat._id}: Status ${res.status}`);
           }
+
         } catch (err) {
-          //console.log(`Sync failed for chat ${chat._id}:`, err);
+          console.error("Error fetching unsynced chats:", err);
         }
       }
     } catch (err) {
       // console.error("Error fetching unsynced chats:", err);
+
+
     }
   };
 
+  // FIX: Added `db` to the dependency array.
+  // This ensures the network listener always has the latest `db` object.
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected) {
+      if (state.isConnected && db) {
         syncChatsToServer();
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [db]);
 
-
-  // Effect to initialize the database connection when the component mounts
-  // THIS WAS COMMENTED OUT - IT IS NOW UNCOMMENTED AND ACTIVE!
+  // FIX: Re-enabled and corrected the database initialization logic.
+  // This now runs only on native platforms and inside a useEffect to prevent startup crashes.
   useEffect(() => {
-    if (Platform.OS !== "web") {
+    // Only run this on mobile, not on the web.
+    if (Platform.OS !== 'web') {
       const initDB = async () => {
         try {
-          const sqlite = require("react-native-sqlite-storage");
+          // Dynamically require the library here
+          const sqlite = require('react-native-sqlite-storage');
+
+          // Enable promises inside the async function
           sqlite.enablePromise(true);
 
           const dbConnection = await sqlite.openDatabase({
@@ -155,52 +148,46 @@ const ScanQRScreen = () => {
             location: "default",
           });
 
-          // ✅ Wait for table creation
           await dbConnection.executeSql(`
-          CREATE TABLE IF NOT EXISTS chats (
-            _id TEXT PRIMARY KEY NOT NULL,
-            participants TEXT,
-            lastMessageId TEXT,
-            status INTEGER,
-            isOnline INTEGER,
-            userName TEXT,
-            consent1 INTEGER,
-            consent2 INTEGER,
-            unreadCount INTEGER,
-            createdAt TEXT,
-            updatedAt TEXT,
+            CREATE TABLE IF NOT EXISTS chats (
+              _id TEXT PRIMARY KEY NOT NULL,
+              participants TEXT,
+              lastMessageId TEXT,
+              status INTEGER,
+              isOnline INTEGER,
+              userName TEXT,
+              consent1 INTEGER,
+              consent2 INTEGER,
+              unreadCount INTEGER,
+              createdAt TEXT,
+              updatedAt TEXT,
               isSynced INTEGER DEFAULT 0
-
-          );
-        `);
-
-          console.log("✅ Chats table ready");
-          setDb(dbConnection);
+            );
+          `);
+          console.log("✅ Database and chats table are ready.");
+          setDb(dbConnection); // Set the database state
         } catch (err) {
-          console.error("DB init failed ❌", err);
+          console.error("❌ DB initialization failed:", err);
         }
       };
-
       initDB();
     }
-  }, []);
+  }, []); // The empty array ensures this runs only once when the component mounts.
 
-  // Effect to reset the scanner when the screen is focused
   useEffect(() => {
     if (isFocused) {
       setScanned(false);
-      setIsLoading(false); // Reset loading state when screen is focused
+      setIsLoading(false);
     }
   }, [isFocused]);
 
-  const handleBarCodeScanned = async ({ type, data }: BarcodeScanningResult) => {
+  const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
     if (scanned || isLoading) return;
     setScanned(true);
     setIsLoading(true);
 
-    // Initial temporary chat object
     const newChat: Chat = {
-      _id: data, // Temporary ID
+      _id: data,
       participants: [userId, data],
       lastMessageId: null,
       status: true,
@@ -215,36 +202,23 @@ const ScanQRScreen = () => {
     };
 
     try {
-      // Try to create the chat on the backend
-      const res = await fetch(
-        `http://localhost:8080/chat/create?inviteTo=${data}&scan=${userId}`
-      );
+      const res = await fetch(`http://localhost:8080/chat/create?inviteTo=${data}&scan=${userId}`);
 
       if (res.ok) {
-        // ✅ Success: Update the ID with the server's ID
         const newServerId = await res.text();
         newChat._id = newServerId;
-        newChat.isSynced = true; // Mark as synced since it was created online
+        newChat.isSynced = true;
         console.log("Chat created online with ID:", newChat._id);
       } else {
-        // ❌ Server Rejected: Treat as an offline-only chat for now
-        // The 'newChat' object remains unchanged with its temporary ID
         console.log(`Server rejected scan: Status ${res.status}. Saving offline.`);
-        // No need to throw an error, just proceed to save locally
       }
-
-      // Save the chat to SQLite regardless of online/offline success
       await saveChatToDB(db, newChat);
-
       router.push(`/views/ChatScreen/${newChat._id}`);
-
     } catch (err) {
-      // ❌ Network failure: Save the chat locally with the temporary ID
       console.log("Network error, saving chat offline:", err);
       await saveChatToDB(db, newChat);
       router.push(`/views/ChatScreen/${newChat._id}`);
     } finally {
-      setScanned(false);
       setIsLoading(false);
     }
   };
@@ -255,16 +229,12 @@ const ScanQRScreen = () => {
       <View className="flex-1 justify-center items-center bg-gray-100">
         <Text className="text-xl text-center text-gray-700 p-5">
           QR Code scanning is not available on the web.
-          <Text className="text-sm text-gray-500 mt-2">
-            (Local database storage is also not available on web.)
-          </Text>
         </Text>
       </View>
     );
   }
 
   if (!permission) {
-    // Permissions are still loading
     return <View />;
   }
 
@@ -281,23 +251,16 @@ const ScanQRScreen = () => {
 
   return (
     <View className="flex-1 justify-center items-center bg-black">
-      {
-        (isFocused && !scanned) && (
-          <CameraView
-            onBarcodeScanned={handleBarCodeScanned}
-            barcodeScannerSettings={{
-              barcodeTypes: ["qr"],
-            }}
-            style={StyleSheet.absoluteFillObject}
-            className="absolute top-0 left-0 right-0 bottom-0"
-          />
-        )}
-
+      {isFocused && !scanned && (
+        <CameraView
+          onBarcodeScanned={handleBarCodeScanned}
+          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      )}
       <View className="flex-1 justify-center items-center bg-black/50">
         <Text className="text-white text-2xl font-bold mb-5">Scan QR Code</Text>
         <View className="w-64 h-64 border-4 border-dashed border-white rounded-xl" />
-
-        {/* Loading Indicator */}
         {isLoading && (
           <View style={StyleSheet.absoluteFillObject} className="justify-center items-center bg-black/70">
             <ActivityIndicator size="large" color="#FFFFFF" />

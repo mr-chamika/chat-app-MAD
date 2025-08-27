@@ -1,4 +1,4 @@
-import 'setimmediate'; // Polyfill for setImmediate
+
 import React, { useEffect, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
