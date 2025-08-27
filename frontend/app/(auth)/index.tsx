@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -9,88 +9,29 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { Image, ImageBackground } from 'expo-image';
 import { cssInterop } from 'nativewind';
 import { useRouter } from "expo-router";
-import emailjs from '@emailjs/browser';
-import { SQLiteDatabase, openDatabase } from 'react-native-sqlite-storage'
 
 cssInterop(Image, { className: "style" });
-cssInterop(ImageBackground, { className: "style" }); // Also need to interop ImageBackground
 
 const bg = require("../../assets/images/bg3.png");
 const logo = require("../../assets/images/logo.png");
 
-// Define a User type for better type safety
-export type User = {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  profilePic: string;
-};
-
-// Function to save a user to the local database
-const saveUserToDB = async (db: SQLiteDatabase, user: User) => {
-  const query = `INSERT OR REPLACE INTO users (_id, firstName, lastName, email, profilePic) VALUES (?, ?, ?, ?, ?)`;
-  const params = [
-    user._id,
-    user.firstName,
-    user.lastName,
-    user.email,
-    user.profilePic,
-  ];
-  await db.executeSql(query, params);
-  console.log(`✅ User saved to DB: ${user.firstName} ${user.lastName}`);
-};
-const getDBConnection = async () => {
-  try {
-    const db = await openDatabase({ name: 'chatApp.db', location: 'default' });
-    console.log("Database connection successful!");
-    return db;
-  } catch (error) {
-    console.error("Failed to open database:", error);
-    return null;
-  }
-};
-
-const initDB = async (db: SQLiteDatabase) => {
-  const userTableQuery = `CREATE TABLE IF NOT EXISTS users (
-    _id TEXT PRIMARY KEY NOT NULL,
-    firstName TEXT,
-    lastName TEXT,
-    email TEXT,
-    profilePic TEXT
-  );`;
-  await db.executeSql(userTableQuery);
-};
-
 const Index = () => {
   const router = useRouter();
+  // --- State for both Signup and OTP steps ---
   const [step, setStep] = useState(0);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [generatedOtp, setGeneratedOtp] = useState({ code: '', timestamp: 0 });
-  const [db, setDb] = useState<SQLiteDatabase | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({}); // For validation errors
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
-
-  useEffect(() => {
-    const initialize = async () => {
-      const dbConnection = await getDBConnection();
-      if (dbConnection) {
-        await initDB(dbConnection);
-        setDb(dbConnection);
-      }
-    };
-    initialize();
-  }, []);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -102,44 +43,24 @@ const Index = () => {
       newErrors.email = "Email address is invalid.";
     }
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0; // Return true if form is valid
   };
 
-  const handleSendOtp = async () => {
-    setIsLoading(true);
-    const newOtp = Math.floor(100000 + Math.random() * 9000).toString();
-    setGeneratedOtp({ code: newOtp, timestamp: Date.now() });
-    const templateParams = {
-      to_name: `${firstName} ${lastName}`,
-      email: email,
-      otp_code: newOtp,
-    };
-
-    try {
-      await emailjs.send(
-        'service_h0e38l2',
-        'template_crl1nc9',
-        templateParams,
-        {
-          publicKey: 'Xav8YamG7K9e8q0nD'
-        }
-      );
-      alert(`A verification code has been sent to ${email}.`);
-      setStep(1);
-    } catch (error) {
-      console.error('EmailJS Error:', error);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignup = async () => {
+  // --- Main handler for the "Sign Up" button ---
+  const handleSignup = () => {
     if (validateForm()) {
-      handleSendOtp();
+      console.log("Form is valid. Simulating API call to send OTP...");
+      setIsLoading(true);
+      // **TODO**: Replace this with your actual API call to your backend.
+      // Your backend should send an OTP to the user's email.
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+      setStep(step + 1);
     }
   };
 
+  // --- OTP Handlers ---
   const handleOtpChange = (text: string, index: number) => {
     const newOtp = [...otp];
     newOtp[index] = text;
@@ -163,81 +84,34 @@ const Index = () => {
     }
 
     setIsLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    if (otpCode == generatedOtp.code) {
-      try {
-        const payloadToSend = {
-          firstName: firstName,
-          lastName: lastName,
-          email: email,
-          profilePic: " ",
-        };
-
-        const res = await fetch('http://localhost:8080/user/signup', {
-          method: 'POST',
-          body: JSON.stringify(payloadToSend),
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!res.ok) {
-          throw new Error(`Server error: ${res.status} - ${await res.text()}`);
-        }
-
-        const serverGeneratedId = await res.text();
-        if (serverGeneratedId != "Signup failed") {
-
-          console.log(serverGeneratedId)
-          const userForSQLite: User = {
-            _id: serverGeneratedId,
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            profilePic: " ",
-          };
-
-          if (db) {
-            await saveUserToDB(db, userForSQLite);
-            console.log("User saved to local DB with server ID:", serverGeneratedId);
-          } else {
-            console.error("Local database not available, user not saved.");
-          }
-
-          Alert.alert("Success!", "Your email has been verified and account created.");
-          router.replace("/(tabs)");
-
-        } else {
-
-          alert('Account already exists')
-          router.replace('/(auth)')
-
-        }
-      } catch (err: any) {
-        console.log("Error during OTP verification/signup:", err.message);
-        Alert.alert('Error', 'An error occurred during signup. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
+    if (otpCode === "123456") {
+      const user = { firstName, lastName, email };
+      console.log("User created:", user);
+      Alert.alert("Success!", "Your email has been verified successfully.");
+      router.push("/(tabs)");
     } else {
       Alert.alert("Error", "Invalid OTP. Please try again.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   const handleResendOTP = () => {
     Alert.alert("OTP Sent", "A new OTP has been sent to your email");
     setOtp(["", "", "", "", "", ""]);
     inputRefs.current[0]?.focus();
-    handleSendOtp();
   };
 
   return (
-    <SafeAreaView className="flex-1">
-      <ImageBackground source={bg} resizeMode="cover" className="flex-1">
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
-          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.container}>
+      <ImageBackground source={bg} resizeMode="cover" style={styles.container}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+          <ScrollView contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
             {step === 0 && (
+              // --- Signup Form View ---
               <View>
                 <View className="items-center mb-10">
                   <Image source={logo} className="w-28 h-28" />
@@ -245,66 +119,65 @@ const Index = () => {
                     Welcome to ChatApp
                   </Text>
                 </View>
-                {isLoading ? (
-                  <View className="flex-1 justify-center items-center">
-                    <ActivityIndicator size="large" color="#4895ef" />
-                    <Text className="mt-4 text-lg text-gray-500">Sending OTP...</Text>
-                  </View>
-                ) : (
-                  <View className="bg-white rounded-3xl p-8 shadow-lg">
-                    <TextInput
-                      className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
-                      placeholder="First Name"
-                      value={firstName}
-                      onChangeText={setFirstName}
-                      placeholderTextColor="#9CA3AF"
-                      autoComplete="given-name"
-                    />
-                    <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.firstName ? 'opacity-100' : 'opacity-0'}`}>
-                      * {errors.firstName || ''}
-                    </Text>
-                    <TextInput
-                      className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
-                      placeholder="Last Name"
-                      value={lastName}
-                      onChangeText={setLastName}
-                      placeholderTextColor="#9CA3AF"
-                      autoComplete="family-name"
-                    />
-                    <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.lastName ? 'opacity-100' : 'opacity-0'}`}>
-                      * {errors.lastName || ''}
-                    </Text>
-                    <TextInput
-                      className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
-                      placeholder="Email"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      placeholderTextColor="#9CA3AF"
-                      autoComplete="email"
-                    />
-                    <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.email ? 'opacity-100' : 'opacity-0'}`}>
-                      * {errors.email || ''}
-                    </Text>
-                    <TouchableOpacity
-                      className={`py-4 rounded-xl items-center mt-4 shadow-lg bg-[#4895ef]`}
-                      onPress={handleSignup}
-                    >
-                      <Text className="text-white font-bold text-lg">Sign Up</Text>
+                <View className="bg-white rounded-3xl p-8 shadow-lg">
+                  <TextInput
+                    className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholderTextColor="#9CA3AF"
+                    autoComplete="given-name"
+                  />
+
+                  <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.firstName ? 'opacity-100' : 'opacity-0'}`}>
+                    * {errors.firstName || ''}
+                  </Text>
+
+                  <TextInput
+                    className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholderTextColor="#9CA3AF"
+                    autoComplete="family-name"
+                  />
+                  <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.lastName ? 'opacity-100' : 'opacity-0'}`}>
+                    * {errors.lastName || ''}
+                  </Text>
+
+                  <TextInput
+                    className="h-14 border border-gray-200 rounded-xl px-4 text-lg bg-gray-50 text-gray-800"
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholderTextColor="#9CA3AF"
+                    autoComplete="email"
+                  />
+                  <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.email ? 'opacity-100' : 'opacity-0'}`}>
+                    * {errors.email || ''}
+                  </Text>
+
+                  <TouchableOpacity
+                    className={`py-4 rounded-xl items-center mt-4 shadow-lg bg-[#4895ef]`}
+                    onPress={handleSignup}
+                  >
+                    <Text className="text-white font-bold text-lg">Sign Up</Text>
+                  </TouchableOpacity>
+
+                  <View className="flex-row justify-center mt-8">
+                    <Text className="text-lg text-gray-600">Already have an account? </Text>
+                    <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
+                      <Text className="text-lg text-[#4895ef] font-bold">Login</Text>
                     </TouchableOpacity>
-                    <View className="flex-row justify-center mt-8">
-                      <Text className="text-lg text-gray-600">Already have an account? </Text>
-                      <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
-                        <Text className="text-lg text-[#4895ef] font-bold">Login</Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
-                )}
+                </View>
               </View>
             )}
 
             {step === 1 && (
+              // --- OTP Form View ---
               <View className="bg-white rounded-3xl p-8 shadow-lg">
                 <Text className="text-4xl font-bold mb-4 text-center text-gray-800">
                   Verify Email
@@ -349,5 +222,17 @@ const Index = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+});
 
 export default Index;

@@ -1,21 +1,15 @@
-import 'setimmediate'; // Polyfill for setImmediate
-import React, { useEffect, useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   View,
   TextInput,
   TouchableOpacity,
   FlatList,
   Text,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { enablePromise, openDatabase, SQLiteDatabase } from 'react-native-sqlite-storage';
-import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaView, useSafeAreaFrame } from "react-native-safe-area-context";
 
-// --- Type Definitions (Aligned with Backend Model) ---
 export type Message = {
   _id: string;
   text: string;
@@ -25,182 +19,321 @@ export type Message = {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
-  isSynced: boolean;
+
 };
 
-// This Chat type now mirrors your Java `Chat` model
 export type Chat = {
   _id: string;
-  participants: string[];
-  lastMessageId: string | null;
-  status: boolean;
-  isOnline: boolean;
   userName: string;
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
+  isOnline: boolean;
+  messages: Message[];
+
   consent1: boolean;
   consent2: boolean;
-  unreadCount: number;
-  createdAt: string; // Using string to store ISO date format
-  updatedAt: string;
+  lastMessageId: string;
+  participants: string[];
 };
 
-// --- Modernized Database Setup ---
-enablePromise(true);
+const router = useRouter();
 
-
-const getDBConnection = async () => {
-  try {
-    const db = await openDatabase({ name: 'chatApp.db', location: 'default' });
-    console.log("Database connection successful!");
-    return db;
-  } catch (error) {
-    console.error("Failed to open database:", error);
-    return null; // Return null on failure
-  }
-};
-
-// Updated the schema for the 'chats' table to match the new Chat type
-const initDB = async (db: SQLiteDatabase) => {
-  const chatTableQuery = `CREATE TABLE IF NOT EXISTS chats (
-        _id TEXT PRIMARY KEY NOT NULL,
-        participants TEXT,
-        lastMessageId TEXT,
-        status INTEGER,
-        isOnline INTEGER,
-        userName TEXT,
-        consent1 INTEGER,
-        consent2 INTEGER,
-        unreadCount INTEGER,
-        createdAt TEXT,
-        updatedAt TEXT
-    );`;
-  const messageTableQuery = `CREATE TABLE IF NOT EXISTS messages (
-    _id TEXT PRIMARY KEY NOT NULL,
-    chatId TEXT NOT NULL,
-    text TEXT,
-    senderId TEXT,
-    status TEXT,
-    isDeleted INTEGER,
-    createdAt TEXT,
-    updatedAt TEXT,
-    isSynced INTEGER DEFAULT 0
-  );`;
-  await db.executeSql(chatTableQuery);
-  await db.executeSql(messageTableQuery);
-};
-
-// Updated se unction to handle all fields from the Chat model
-const saveChatToDB = async (db: SQLiteDatabase, chat: Chat) => {
-  const query = `INSERT OR REPLACE INTO chats 
-        (_id, participants, lastMessageId, status, isOnline, userName, consent1, consent2, unreadCount, createdAt, updatedAt) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  // Booleans are converted to 1 (true) or 0 (false) for SQLite
-  const params = [
-    chat._id,
-    JSON.stringify(chat.participants),
-    chat.lastMessageId,
-    chat.status ? 1 : 0,
-    chat.isOnline ? 1 : 0,
-    chat.userName,
-    chat.consent1 ? 1 : 0,
-    chat.consent2 ? 1 : 0,
-    chat.unreadCount,
-    chat.createdAt,
-    chat.updatedAt,
-
-  ];
-  await db.executeSql(query, params);
-};
-
-const saveMessagesToDB = async (db: SQLiteDatabase, messages: Message[]) => {
-  await db.transaction(async tx => {
-    for (const msg of messages) {
-      const query = `INSERT OR REPLACE INTO messages 
-        (_id, chatId, text, senderId, status, isDeleted, createdAt, updatedAt, isSynced) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const params = [
-        msg._id,
-        msg.chatId,
-        msg.text,
-        msg.senderId,
-        msg.status, // Save status as text
-        msg.isDeleted ? 1 : 0, // Convert boolean to integer
-        msg.createdAt,
-        msg.updatedAt,
-        msg.isSynced ? 1 : 0 // Save sync status
-      ];
-      await tx.executeSql(query, params);
-    }
-  });
-};
-
-const syncMessagesToServer = async (db: any) => {
-  try {
-    const [results] = await db.executeSql(
-      "SELECT * FROM messages WHERE isSynced = 0"
-    );
-
-    const unsyncedMessages: any[] = [];
-    for (let i = 0; i < results.rows.length; i++) {
-      unsyncedMessages.push(results.rows.item(i));
-    }
-
-    if (unsyncedMessages.length === 0) {
-      console.log("No unsynced messages.");
-      return;
-    }
-
-    console.log(`Found ${unsyncedMessages.length} unsynced messages. Syncing...`);
-
-    for (const msg of unsyncedMessages) {
-      try {
-        const res = await fetch("http://localhost:8080/message/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chatId: msg.chatId,
-            text: msg.text,
-            senderId: msg.senderId,
-            status: msg.status,
-            createdAt: msg.createdAt,
-            updatedAt: msg.updatedAt,
-          }),
-        });
-
-        if (res.ok) {
-          const savedMsg = await res.json();
-
-          // ✅ Update SQLite: replace old _id with server's _id & mark as synced
-          await db.executeSql("UPDATE messages SET isSynced = 1 WHERE _id = ?", [msg._id]);
-
-          console.log(
-            `✅ Synced message: Local ID (${msg._id}) → Server ID (${savedMsg._id})`
-          );
-        } else {
-          console.log("❌ Server rejected message:", msg._id, res.status);
-        }
-      } catch (err) {
-        //console.error("❌ Sync failed for message", msg._id, err);
-      }
-    }
-  } catch (err) {
-    console.error("❌ Error during sync:", err);
-  }
-};
-
-// --- UI Components ---
+/* const mockMessages: Chat[] = [
+  {
+    id: "1",
+    userName: "Jane Doe",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
+    lastMessage: "Looks cool! Can you send me the files?",
+    timestamp: "10:45 AM",
+    unreadCount: 2,
+    isOnline: true,
+    messages: [
+      { id: "m1-1", text: "Hey, I saw the new designs.", sender: "user" },
+      { id: "m1-2", text: "Oh great! What do you think?", sender: "other" },
+      {
+        id: "m1-3",
+        text: "Looks cool! Can you send me the files?",
+        sender: "user",
+      },
+    ],
+  },
+  {
+    id: "2",
+    userName: "John Smith",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026705d",
+    lastMessage: "See you tomorrow at the meeting!",
+    timestamp: "9:30 AM",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m2-1", text: "Are we still on for tomorrow?", sender: "user" },
+      {
+        id: "m2-2",
+        text: "Yes, absolutely. See you tomorrow at the meeting!",
+        sender: "other",
+      },
+    ],
+  },
+  {
+    id: "3",
+    userName: "Alex Ray",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026706d",
+    lastMessage: "Okay, sounds good. I will check it out.",
+    timestamp: "Yesterday",
+    unreadCount: 5,
+    isOnline: true,
+    messages: [
+      { id: "m3-1", text: "Here is the link.", sender: "other" },
+      {
+        id: "m3-2",
+        text: "Okay, sounds good. I will check it out.",
+        sender: "user",
+      },
+    ],
+  },
+  {
+    id: "4",
+    userName: "Sarah Conner",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026707d",
+    lastMessage: "Haha, that is hilarious!",
+    timestamp: "Yesterday",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m4-1", text: "Did you see that video I sent?", sender: "user" },
+      { id: "m4-2", text: "Haha, that is hilarious!", sender: "other" },
+    ],
+  },
+  {
+    id: "5",
+    userName: "Mike Ross",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026708d",
+    lastMessage: "Did you get the documents I sent?",
+    timestamp: "Sun",
+    unreadCount: 1,
+    isOnline: true,
+    messages: [
+      { id: "m5-1", text: "Did you get the documents I sent?", sender: "user" },
+    ],
+  },
+  {
+    id: "6",
+    userName: "Emily Carter",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026709d",
+    lastMessage: "Let's catch up later this week.",
+    timestamp: "Sun",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m6-1", text: "Hey! Long time no see.", sender: "user" },
+      { id: "m6-2", text: "I know! We should catch up.", sender: "other" },
+      { id: "m6-3", text: "Let's catch up later this week.", sender: "user" },
+    ],
+  },
+  {
+    id: "7",
+    userName: "Tech Group",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026710d",
+    lastMessage: "Alex: Don't forget the deadline!",
+    timestamp: "Fri",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m7-1", text: "Alex: Don't forget the deadline!", sender: "other" },
+    ],
+  },
+  {
+    id: "8",
+    userName: "David Chen",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026711d",
+    lastMessage: "Thanks for your help!",
+    timestamp: "Fri",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [
+      { id: "m8-1", text: "The issue is resolved now.", sender: "other" },
+      { id: "m8-2", text: "Thanks for your help!", sender: "user" },
+    ],
+  },
+  {
+    id: "9",
+    userName: "Olivia Martinez",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026712d",
+    lastMessage: "I have a question about the project.",
+    timestamp: "Thu",
+    unreadCount: 3,
+    isOnline: false,
+    messages: [
+      {
+        id: "m9-1",
+        text: "I have a question about the project.",
+        sender: "user",
+      },
+    ],
+  },
+  {
+    id: "10",
+    userName: "Ben Taylor",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026713d",
+    lastMessage: "Can you review my code?",
+    timestamp: "Thu",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [
+      { id: "m10-1", text: "Can you review my code?", sender: "user" },
+    ],
+  },
+  {
+    id: "11",
+    userName: "Chloe Wilson",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026714d",
+    lastMessage: "Happy Birthday! 🎉",
+    timestamp: "Wed",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [{ id: "m11-1", text: "Happy Birthday! 🎉", sender: "other" }],
+  },
+  {
+    id: "12",
+    userName: "Daniel Brown",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026715d",
+    lastMessage: "Are you free for a quick call?",
+    timestamp: "Wed",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m12-1", text: "Are you free for a quick call?", sender: "user" },
+    ],
+  },
+  {
+    id: "13",
+    userName: "Sophia Garcia",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026716d",
+    lastMessage: "No problem!",
+    timestamp: "Tue",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [
+      { id: "m13-1", text: "Thank you!", sender: "user" },
+      { id: "m13-2", text: "No problem!", sender: "other" },
+    ],
+  },
+  {
+    id: "14",
+    userName: "Marketing Team",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026717d",
+    lastMessage: "Jane: New campaign brief is up.",
+    timestamp: "Tue",
+    unreadCount: 1,
+    isOnline: false,
+    messages: [
+      { id: "m14-1", text: "Jane: New campaign brief is up.", sender: "other" },
+    ],
+  },
+  {
+    id: "15",
+    userName: "James Johnson",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026718d",
+    lastMessage: "You too!",
+    timestamp: "Mon",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m15-1", text: "Have a great weekend!", sender: "user" },
+      { id: "m15-2", text: "You too!", sender: "other" },
+    ],
+  },
+  {
+    id: "16",
+    userName: "Isabella Rodriguez",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026719d",
+    lastMessage: "Typing...",
+    timestamp: "Mon",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [{ id: "m16-1", text: "Hey, are you there?", sender: "user" }],
+  },
+  {
+    id: "17",
+    userName: "William Lee",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026720d",
+    lastMessage: "Let me know what you think.",
+    timestamp: "7/20/2025",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m17-1", text: "I've sent the proposal.", sender: "other" },
+      { id: "m17-2", text: "Let me know what you think.", sender: "other" },
+    ],
+  },
+  {
+    id: "18",
+    userName: "Mia Hernandez",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026721d",
+    lastMessage: "Sent the invoice.",
+    timestamp: "7/19/2025",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [{ id: "m18-1", text: "Sent the invoice.", sender: "other" }],
+  },
+  {
+    id: "19",
+    userName: "Ethan Gonzalez",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026722d",
+    lastMessage: "Perfect, thank you!",
+    timestamp: "7/18/2025",
+    unreadCount: 0,
+    isOnline: true,
+    messages: [
+      { id: "m19-1", text: "Here are the final files.", sender: "other" },
+      { id: "m19-2", text: "Perfect, thank you!", sender: "user" },
+    ],
+  },
+  {
+    id: "20",
+    userName: "Ava Perez",
+    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026723d",
+    lastMessage: "See you there.",
+    timestamp: "7/17/2025",
+    unreadCount: 0,
+    isOnline: false,
+    messages: [
+      { id: "m20-1", text: "The event starts at 7.", sender: "other" },
+      { id: "m20-2", text: "See you there.", sender: "user" },
+    ],
+  },
+];
+ */
 const ChatHeader = ({ user }: { user: Chat }) => {
-  const router = useRouter();
   return (
     <View className="flex-row items-center p-2 bg-white border-b border-gray-200 shadow-sm">
       <TouchableOpacity onPress={() => router.back()} className="p-2 mr-2">
         <Text className="text-2xl font-bold text-blue-600">‹</Text>
       </TouchableOpacity>
+
+      {/* <TouchableOpacity
+        className="relative"
+        onPress={() => router.push(`/views/userProfile/${id}`)}
+      >
+        <Image
+          source={{ uri: user.avatarUrl }}
+          className="w-11 h-11 rounded-full"
+        />
+        {user.isOnline && (
+          <View className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+        )}
+      </TouchableOpacity> */}
+
       <View className="flex-1 ml-3">
         <Text className="font-semibold text-base text-gray-800">
-          {user.userName || `User ${user.participants?.[0] || 'Unknown'}`}
+          user {user.participants[0]}
         </Text>
-        {user.isOnline && <Text className="text-sm text-green-600">Online</Text>}
+        {user.isOnline && (
+          <Text className="text-sm text-green-600">Online</Text>
+        )}
       </View>
+
       <TouchableOpacity className="p-2">
         <Text className="text-2xl font-bold text-gray-600">⋮</Text>
       </TouchableOpacity>
@@ -208,213 +341,90 @@ const ChatHeader = ({ user }: { user: Chat }) => {
   );
 };
 
-const MessageBubble = ({ text, sender }: { text: string; sender: string; }) => {
-  const isUser = sender === '6874baf06bb6ef13073a1236'; // Replace with dynamic current user ID
+const MessageBubble = ({
+  text,
+  sender,
+}: {
+  text: string;
+  sender: string;
+}) => {
+  const isUser = sender === '6874baf06bb6ef13073a1236';
   return (
-    <View className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"}`}>
+    <View
+      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"
+        }`}
+    >
       <Text className={`${isUser ? "text-white" : "text-black"}`}>{text}</Text>
     </View>
   );
 };
 
-// --- Main Chat Screen Component ---
 const ChatScreen = () => {
-  const [db, setDb] = useState<SQLiteDatabase | null>(null);
-  const [chat, setChat] = useState<Chat | null>(null);
-  const [message, setMessage] = useState('');
-  const [messageList, setMessageList] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { id } = useLocalSearchParams<{ id: string }>();
 
-  // db?.transaction(tx => {
-  //   tx.executeSql("SELECT * FROM chats", [], (txObj, resultSet) => {
-  //     for (let i = 0; i < resultSet.rows.length; i++) {
-  //       console.log("Chats =>", resultSet.rows.item(i));
-  //     }
-  //   });
-  // });
+  const [chat, setChat] = useState<Chat | null>(null)
+  const [message, setMessage] = useState('')
+  const [messageList, setMessageList] = useState<Message[]>([])
+
+  const { id } = useLocalSearchParams();
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected && db) { // Ensure db is available
-        // Existing chat sync
-        syncMessagesToServer(db); // New message sync
-      }
-    });
-    return () => unsubscribe();
-  }, [db]);
-
-  useEffect(() => {
-    const initializeDB = async () => {
+    const getChat = async () => {
       try {
-        const dbConnection = await getDBConnection();
 
-        if (dbConnection) {
+        //const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
+        const res = await fetch(`http://localhost:8080/chat/get?id=${id}`)
 
-          await initDB(dbConnection);
-          setDb(dbConnection);
+        if (res) {
+          const data = await res.json();
+
+          //console.log(data)
+          setChat(data);
+        } else {
+          setChat(null);
+        }
+      } catch (err) {
+        console.log("Error from get chat : ", err);
+      }
+    };
+
+    getChat()
+    getChats()
+
+
+  }, [id])
+
+  const getChats = async () => {
+
+    try {
+
+      const res = await fetch(`http://localhost:8080/message/get?id=${id}`)
+
+      if (res.ok) {
+
+        const data = await res.json()
+
+        if (data.length > 0) {
+
+          setMessageList(data.reverse())
+
+        } else {
+
+          setMessageList([]);
 
         }
-      } catch (error) {
-        console.error("Failed to initialize database", error);
-      }
-    };
-    initializeDB();
-  }, []);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id || !db) return;
-      setIsLoading(true);
-      const networkState = await NetInfo.fetch();
-      if (networkState.isConnected) {
-        await fetchChatFromServer();
-        await fetchMessagesFromServer();
-      } else {
-        console.log("Offline: Loading data from local database.");
-        await loadChatFromDB();
-        await loadMessagesFromDB();
       }
-      setIsLoading(false);
-    };
-    loadData();
-  }, [id, db]);
 
-  const fetchChatFromServer = async () => {
-    if (!id || !db) return;
-    try {
-      const res = await fetch(`http://localhost:8080/chat/get?id=${id}`);
-      if (res.ok) {
-        const data: Chat = await res.json();
-        setChat(data);
-        await saveChatToDB(db, data);
-      }
-    } catch (err) {
-      console.log("Error fetching chat, falling back to local DB.", err);
-      await loadChatFromDB();
-    }
-  };
-
-  const fetchMessagesFromServer = async () => {
-    if (!id || !db) return;
-    try {
-      const res = await fetch(`http://localhost:8080/message/get?id=${id}`);
-      if (res.ok) {
-        const data: Message[] = await res.json();
-        setMessageList(data.slice().reverse());
-        //await saveMessagesToDB(db, data);
-      }
     } catch (error) {
-      console.log('Server fetch failed, falling back to local DB...', error);
-      await loadMessagesFromDB();
+
+      console.log('Error from chatList loading useForcusEffect : ', error)
+      setMessageList([]);
+
     }
-  };
 
-  // Updated load function to correctly parse all fields from the DB
-  const loadChatFromDB = async () => {
-    if (!id || !db) return;
-    try {
-      const [results] = await db.executeSql('SELECT * FROM chats WHERE _id = ?', [id]);
-      if (results.rows.length > 0) {
-        const item = results.rows.item(0);
-        const loadedChat: Chat = {
-          ...item,
-          participants: JSON.parse(item.participants),
-          // Convert integers back to booleans
-          status: !!item.status,
-          isOnline: !!item.isOnline,
-          consent1: !!item.consent1,
-          consent2: !!item.consent2,
-        };
-        setChat(loadedChat);
-      }
-    } catch (error) {
-      console.error("Failed to load chat from DB", error);
-    }
-  };
-
-  const loadMessagesFromDB = async () => {
-    if (!id || !db) return;
-    try {
-      const [results] = await db.executeSql('SELECT * FROM messages WHERE chatId = ? ORDER BY createdAt DESC', [id]);
-      const messages: Message[] = [];
-      for (let i = 0; i < results.rows.length; i++) {
-        messages.push(results.rows.item(i));
-      }
-      setMessageList(messages);
-    } catch (error) {
-      console.error("Failed to load messages from DB", error);
-    }
-  };
-
-  // Inside ChatScreen component
-  const createMessage = async () => {
-    if (message.trim() === '' || !id || !db) return;
-
-    const tempMessageId = new Date().getTime().toString(); // temporary ID
-    const newMessage: Message = {
-      _id: tempMessageId,
-      chatId: id,
-      text: message,
-      senderId: '6874baf06bb6ef13073a1236', // your user ID
-      status: 'sent',
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isSynced: false,
-    };
-
-    // 1️⃣ Save to SQLite first
-    await saveMessagesToDB(db, [newMessage]);
-
-    // 2️⃣ Optimistically show in UI
-    setMessageList(prev => [newMessage, ...prev]);
-    setMessage('');
-
-    // 3️⃣ If online, send to server
-    const networkState = await NetInfo.fetch();
-    if (networkState.isConnected) {
-      try {
-        const res = await fetch(`http://localhost:8080/message/create`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newMessage),
-        });
-
-        if (res.ok) {
-          const savedMessage: Message = await res.json();
-
-          // 4️⃣ Update SQLite to mark synced (and update server _id if changed)
-          await db.executeSql(
-            "UPDATE messages SET _id = ?, isSynced = 1 WHERE _id = ?",
-            [savedMessage._id, tempMessageId]
-          );
-
-          // Update UI as well
-          setMessageList(prev =>
-            prev.map(msg =>
-              msg._id === tempMessageId ? { ...msg, _id: savedMessage._id, isSynced: true } : msg
-            )
-          );
-
-          console.log('Message sent & saved to DB:', savedMessage._id);
-        } else throw new Error(`Server error ${res.status}`);
-      } catch (err) {
-        console.log("Server failed, message stays unsynced in SQLite:", err);
-      }
-    } else {
-      console.log("Offline: message saved locally, will sync later.");
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" />
-        <Text>Loading messages...</Text>
-      </SafeAreaView>
-    );
   }
+
+  //const chat = mockMessages.find((c) => c.id === id);
 
   if (!chat) {
     return (
@@ -424,46 +434,82 @@ const ChatScreen = () => {
     );
   }
 
+  const createMessage = async () => {
+
+    try {
+
+      const newMessage = {
+
+        chatId: id,
+        text: message,
+        senderId: '6874baf06bb6ef13073a1236'
+
+      }
+
+      const res = await fetch(`http://localhost:8080/message/create`, {
+
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMessage)
+
+      })
+
+      if (res.ok) {
+
+        const data = await res.json()
+
+        setMessage('');
+        setMessageList(prevMessages => [data, ...prevMessages])
+
+      }
+
+    } catch (err) {
+
+      console.log('Error from message create : ', err);
+    }
+
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-200">
       <ChatHeader user={chat} />
-      <KeyboardAvoidingView
-        behavior="padding"
-        className="flex-1"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 20}
-      >
-        <View className="flex-1 p-3">
-          {messageList.length > 0 ? (
-            <FlatList
-              data={messageList}
-              renderItem={({ item }) => <MessageBubble text={item.text} sender={item.senderId} />}
-              keyExtractor={(item) => item._id}
-              className="flex-1"
-              inverted
-            />
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <Text>No messages yet. Start the conversation!</Text>
-            </View>
+
+      <View className="flex-1 p-3">
+        {messageList.length > 0 ? <FlatList
+          data={messageList}
+          renderItem={({ item }) => (
+            <MessageBubble text={item.text} sender={item.senderId} />
           )}
-        </View>
-        <View className="flex-row items-center p-3 border-t border-gray-300 bg-white">
-          <TextInput
-            className="flex-1 h-10 bg-gray-100 rounded-2xl px-4 mr-2"
-            placeholder="Type a message..."
-            placeholderTextColor="#999"
-            onChangeText={setMessage}
-            value={message}
-          />
-          <TouchableOpacity
-            onPress={createMessage}
-            className={`rounded-full p-3 ${message.trim() === '' ? 'bg-blue-300' : 'bg-blue-600'}`}
-            disabled={message.trim() === ''}
-          >
-            <Text className="text-white text-base font-semibold">Send</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+          keyExtractor={(item) => item._id}
+          className="flex-1 overflow-hidden"
+          inverted
+        />
+
+          :
+          <View className=" w-full h-full items-center justify-center">
+            <Text>No messages yet</Text>
+          </View>
+        }
+      </View>
+
+      <View className="flex-row items-center p-3 border-t border-gray-300 bg-white">
+        <TextInput
+          className="flex-1 h-10 bg-gray-100 rounded-2xl px-4 mr-2"
+          placeholder="Type a message..."
+          placeholderTextColor="#999"
+          onChangeText={setMessage}
+          value={message}
+        />
+        <TouchableOpacity
+
+          onPress={createMessage}
+          className={` rounded-full p-3 ${message.trim() === '' ? 'bg-blue-300' : 'bg-blue-600'}`}
+          disabled={message.trim() === ''}
+        >
+
+          <Text className="text-white text-base">Send</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
