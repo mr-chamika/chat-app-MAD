@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   View,
   TextInput,
@@ -19,6 +19,7 @@ export type Message = {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+
 };
 
 export type Chat = {
@@ -340,13 +341,18 @@ const ChatHeader = ({ user }: { user: Chat }) => {
   );
 };
 
-const MessageBubble = ({ text, sender }: { text: string; sender: string }) => {
-  const isUser = sender === "6874baf06bb6ef13073a1236";
+const MessageBubble = ({
+  text,
+  sender,
+}: {
+  text: string;
+  sender: string;
+}) => {
+  const isUser = sender === '6874baf06bb6ef13073a1236';
   return (
     <View
-      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${
-        isUser ? "bg-blue-500 self-end" : "bg-white self-start"
-      }`}
+      className={`p-3 rounded-2xl max-w-[80%] mb-2.5 ${isUser ? "bg-blue-500 self-end" : "bg-white self-start"
+        }`}
     >
       <Text className={`${isUser ? "text-white" : "text-black"}`}>{text}</Text>
     </View>
@@ -354,17 +360,19 @@ const MessageBubble = ({ text, sender }: { text: string; sender: string }) => {
 };
 
 const ChatScreen = () => {
-  const [chat, setChat] = useState<Chat | null>(null);
-  const [message, setMessage] = useState("");
-  const [messageList, setMessageList] = useState<Message[]>([]);
+
+  const [chat, setChat] = useState<Chat | null>(null)
+  const [message, setMessage] = useState('')
+  const [messageList, setMessageList] = useState<Message[]>([])
 
   const { id } = useLocalSearchParams();
 
   useEffect(() => {
     const getChat = async () => {
       try {
+
         //const res = await fetch(`http://10.98.103.38:8080/chat/get?id=${id}`)
-        const res = await fetch(`http://localhost:8080/chat/get?id=${id}`);
+        const res = await fetch(`http://localhost:8080/chat/get?id=${id}`)
 
         if (res) {
           const data = await res.json();
@@ -379,28 +387,42 @@ const ChatScreen = () => {
       }
     };
 
-    getChat();
-    getChats();
-  }, [id]);
+    getChat()
+    getChats()
+
+
+  }, [id])
 
   const getChats = async () => {
+
     try {
-      const res = await fetch(`http://localhost:8080/message/get?id=${id}`);
+
+      const res = await fetch(`http://localhost:8080/message/get?id=${id}`)
 
       if (res.ok) {
-        const data = await res.json();
+
+        const data = await res.json()
 
         if (data.length > 0) {
-          setMessageList(data.reverse());
+
+          setMessageList(data.reverse())
+
         } else {
+
           setMessageList([]);
+
         }
+
       }
+
     } catch (error) {
-      console.log("Error from chatList loading useForcusEffect : ", error);
+
+      console.log('Error from chatList loading useForcusEffect : ', error)
       setMessageList([]);
+
     }
-  };
+
+  }
 
   //const chat = mockMessages.find((c) => c.id === id);
 
@@ -413,50 +435,61 @@ const ChatScreen = () => {
   }
 
   const createMessage = async () => {
+
     try {
+
       const newMessage = {
+
         chatId: id,
         text: message,
-        senderId: "6874baf06bb6ef13073a1236",
-      };
+        senderId: '6874baf06bb6ef13073a1236'
+
+      }
 
       const res = await fetch(`http://localhost:8080/message/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMessage),
-      });
+
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMessage)
+
+      })
 
       if (res.ok) {
-        const data = await res.json();
 
-        setMessage("");
-        setMessageList((prevMessages) => [data, ...prevMessages]);
+        const data = await res.json()
+
+        setMessage('');
+        setMessageList(prevMessages => [data, ...prevMessages])
+
       }
+
     } catch (err) {
-      console.log("Error from message create : ", err);
+
+      console.log('Error from message create : ', err);
     }
-  };
+
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-200">
       <ChatHeader user={chat} />
 
       <View className="flex-1 p-3">
-        {messageList.length > 0 ? (
-          <FlatList
-            data={messageList}
-            renderItem={({ item }) => (
-              <MessageBubble text={item.text} sender={item.senderId} />
-            )}
-            keyExtractor={(item) => item._id}
-            className="flex-1 overflow-hidden"
-            inverted
-          />
-        ) : (
+        {messageList.length > 0 ? <FlatList
+          data={messageList}
+          renderItem={({ item }) => (
+            <MessageBubble text={item.text} sender={item.senderId} />
+          )}
+          keyExtractor={(item) => item._id}
+          className="flex-1 overflow-hidden"
+          inverted
+        />
+
+          :
           <View className=" w-full h-full items-center justify-center">
             <Text>No messages yet</Text>
           </View>
-        )}
+        }
       </View>
 
       <View className="flex-row items-center p-3 border-t border-gray-300 bg-white">
@@ -468,12 +501,12 @@ const ChatScreen = () => {
           value={message}
         />
         <TouchableOpacity
+
           onPress={createMessage}
-          className={` rounded-full p-3 ${
-            message.trim() === "" ? "bg-blue-300" : "bg-blue-600"
-          }`}
-          disabled={message.trim() === ""}
+          className={` rounded-full p-3 ${message.trim() === '' ? 'bg-blue-300' : 'bg-blue-600'}`}
+          disabled={message.trim() === ''}
         >
+
           <Text className="text-white text-base">Send</Text>
         </TouchableOpacity>
       </View>
