@@ -57,9 +57,8 @@ export default function _Layout() {
                 options={{
                   tabBarIcon: ({ focused }) => (
                     <View
-                      className={`p-2 rounded-full ${
-                        focused ? "bg-white" : "bg-transparent"
-                      }`}
+                      className={`p-2 rounded-full ${focused ? "bg-white" : "bg-transparent"
+                        }`}
                     >
                       <Image source={HomeA} />
                     </View>
@@ -72,9 +71,8 @@ export default function _Layout() {
               options={{
                 tabBarIcon: ({ focused }) => (
                   <View
-                    className={`p-2 rounded-full ${
-                      focused ? "bg-white" : "bg-transparent"
-                    }`}
+                    className={`p-2 rounded-full ${focused ? "bg-white" : "bg-transparent"
+                      }`}
                   >
                     <Image source={Car} />
                   </View>
@@ -86,9 +84,8 @@ export default function _Layout() {
               options={{
                 tabBarIcon: ({ focused }) => (
                   <View
-                    className={`p-2 rounded-full ${
-                      focused ? "bg-white" : "bg-transparent"
-                    }`}
+                    className={`p-2 rounded-full ${focused ? "bg-white" : "bg-transparent"
+                      }`}
                   >
                     <Image source={Locat} />
                   </View>
@@ -100,9 +97,8 @@ export default function _Layout() {
               options={{
                 tabBarIcon: ({ focused }) => (
                   <View
-                    className={`p-2 rounded-full ${
-                      focused ? "bg-white" : "bg-transparent"
-                    }`}
+                    className={`p-2 rounded-full ${focused ? "bg-white" : "bg-transparent"
+                      }`}
                   >
                     <Image source={UserA} />
                   </View>

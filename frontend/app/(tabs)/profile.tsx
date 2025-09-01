@@ -214,9 +214,8 @@ const MyProfileScreen = () => {
                     </Text>
                   ) : null}
                   <TouchableOpacity
-                    className={`bg-green-600 py-3 rounded-xl items-center ${
-                      isVerifying ? "opacity-50" : ""
-                    }`}
+                    className={`bg-green-600 py-3 rounded-xl items-center ${isVerifying ? "opacity-50" : ""
+                      }`}
                     onPress={handleVerifyOtp}
                     disabled={isVerifying}
                   >
