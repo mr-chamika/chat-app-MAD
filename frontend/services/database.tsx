@@ -149,7 +149,7 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
           } catch {
             return [];
           }
-        }),
+        })(),
         status: !!item.status,
         isOnline: !!item.isOnline,
         consent1: !!item.consent1,

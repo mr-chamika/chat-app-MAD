@@ -77,7 +77,7 @@ const Login: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      console.log(email, otpCode)
+      alert('begin')
       // Step 1: Verify the OTP is correct
       const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
         method: "POST",
@@ -86,7 +86,7 @@ const Login: React.FC = () => {
       });
 
       const verifyText = await verifyRes.text();
-      console.log('res', verifyText)
+      alert('res' + verifyText)
       if (!verifyRes.ok || !verifyText.includes("successfully")) {
         throw new Error(verifyText || "Invalid OTP ❌");
 
@@ -135,7 +135,7 @@ const Login: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Verify OTP or Login error:", err);
-      Alert.alert("Error", err.message || "An unknown error occurred.");
+      Alert.alert("Error changed", "An unknown error occurred.");
     } finally {
       setIsLoading(false);
     }

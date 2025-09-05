@@ -139,6 +139,7 @@ const ChatScreen = () => {
   const loadChatFromDB = async () => {
     if (!id) return;
     const chatData = await getChatById(id);
+    console.log(chatData, 'xxxxx')
     if (chatData) setChat(chatData);
   };
 

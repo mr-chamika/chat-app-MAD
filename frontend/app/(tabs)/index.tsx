@@ -131,6 +131,7 @@ const Index: React.FC = () => {
       // FIX: Uses the classic-API-wrapped loadChatsFromDB function
       const localChats = await loadChatsFromDB();
       setChatList(localChats);
+      console.log(localChats, 'llll')
       console.log("Loaded chats from local DB:", localChats.length);
 
       const networkState = await NetInfo.fetch();
