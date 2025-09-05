@@ -15,6 +15,7 @@ import { Image, ImageBackground } from 'expo-image';
 import { cssInterop } from 'nativewind';
 import { useRouter } from "expo-router";
 import * as SQLite from 'expo-sqlite'; // Replaced with expo-sqlite
+import { getDB } from "@/services/database";
 
 cssInterop(Image, { className: "style" });
 cssInterop(ImageBackground, { className: "style" });
@@ -45,30 +46,6 @@ const saveUserToDB = async (db: SQLite.SQLiteDatabase, user: User) => {
   console.log(`✅ User saved to DB: ${user.firstName} ${user.lastName}`);
 };
 
-// Function to open a database connection using expo-sqlite
-const getDBConnection = () => { // No longer async
-  try {
-    const db = SQLite.openDatabaseSync('chatApp.db'); // Use openDatabaseSync
-    console.log("Database connection successful!");
-    return db;
-  } catch (error) {
-    console.error("Failed to open database:", error);
-    return null;
-  }
-};
-
-// Function to initialize database tables using expo-sqlite
-const initDB = async (db: SQLite.SQLiteDatabase) => {
-  const userTableQuery = `CREATE TABLE IF NOT EXISTS users (
-    _id TEXT PRIMARY KEY NOT NULL,
-    firstName TEXT,
-    lastName TEXT,
-    email TEXT,
-    profilePic TEXT
-  );`;
-  await db.execAsync(userTableQuery); // Use execAsync for table creation
-};
-
 const Index = () => {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -77,21 +54,11 @@ const Index = () => {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null); // Updated type
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [error, setError] = useState(false)
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  useEffect(() => {
-    const initialize = () => { // No longer needs to be async at the top level
-      const dbConnection = getDBConnection();
-      if (dbConnection) {
-        initDB(dbConnection); // initDB is still async
-        setDb(dbConnection);
-      }
-    };
-    initialize();
-  }, []);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -126,22 +93,15 @@ const Index = () => {
           const serverGeneratedId = await res.text();
           console.log('Signup response:', serverGeneratedId);
 
-          if (serverGeneratedId !== "Signup failed" && serverGeneratedId !== "User already exists with this email") {
-            const otpRes = await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email })
-            });
+          if (serverGeneratedId !== "Signup failed") {
 
-            if (otpRes.ok) {
-              console.log("OTP API response:", await otpRes.text());
-              alert("OTP sent to your email!");
-              setStep(1);
-            } else {
-              alert('Failed to send OTP.');
-            }
+            // setStep(1);
+            router.push('/login')
+            setError(false)
+
           } else {
-            alert(serverGeneratedId); // Show specific error like "User already exists"
+            //alert(serverGeneratedId); // Show specific error like "User already exists"
+            setError(true)
           }
         } else {
           alert('Signup request failed');
@@ -171,6 +131,9 @@ const Index = () => {
   };
 
   const handleVerifyOtp = async () => {
+
+    const db = await getDB()
+
     const otpCode = otp.join("");
     if (!otpCode || otpCode.length !== 6) {
       Alert.alert("Error", "Please enter the complete 6-digit OTP");
@@ -220,7 +183,7 @@ const Index = () => {
         body: JSON.stringify({ email })
       });
       console.log("Resend OTP API response:", await otpRes.text());
-      Alert.alert("OTP Sent", "A new OTP has been sent to your email");
+      //Alert.alert("OTP Sent", "A new OTP has been sent to your email");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } catch (err) {
@@ -282,6 +245,9 @@ const Index = () => {
                   />
                   <Text className={`text-red-400 mb-5 mt-1 h-5 ${errors.email ? 'opacity-100' : 'opacity-0'}`}>
                     * {errors.email || ''}
+                  </Text>
+                  <Text className={`text-red-400 mb-5 mt-1 h-5 ${error ? 'opacity-100' : 'opacity-0'}`}>
+                    * Email already registered. Try login
                   </Text>
                   <TouchableOpacity
                     className={`py-4 rounded-xl items-center mt-4 shadow-lg bg-[#4895ef]`}

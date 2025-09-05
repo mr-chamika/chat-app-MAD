@@ -37,7 +37,9 @@ const GenerateQRScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log("qrValue updated:", qrValue);
+    if (qrValue !== null) {
+      console.log("qrValue updated:", qrValue);
+    }
     if (error) console.log("Error:", error);
   }, [qrValue, error]);
 
@@ -45,7 +47,8 @@ const GenerateQRScreen: React.FC = () => {
     <View className="flex-1 justify-center items-center bg-white p-5">
       <Text className="text-2xl font-bold text-center mb-4">Start a Chat</Text>
       <Text className="text-lg text-gray-600 text-center mb-8">
-        Have the other person scan this QR code to connect.{qrValue}
+        Let the other person scan this QR code to connect.
+
       </Text>
 
       {error ? (

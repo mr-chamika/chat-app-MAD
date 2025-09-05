@@ -1,40 +1,45 @@
 import 'setimmediate';
 import { router, Stack } from "expo-router";
-import { Alert, StatusBar, View } from "react-native";
-import { useEffect } from 'react';
+import { Alert, StatusBar, Text, View } from "react-native";
+import { useEffect, useState } from 'react';
 import * as SQLite from 'expo-sqlite';
 import './global.css'
-import { initDB, checkIfUserExists } from '../services/database';
+import { initDB, checkIfUserExists, getDB, dbReady } from '../services/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // This is the only function this file needs.
 
 export default function RootLayout() {
+
   // This useEffect runs only once when the app starts,
   // ensuring the database is ready before any screens render.
   useEffect(() => {
-    initDB();
+    const setupDB = async () => {
+      await initDB(); // ✅ Initi1alize DB tables before using them
+      console.log('running intiDB')
+    };
+    setupDB();
   }, []);
 
-  const getDBConnection = async () => {
+  // const getDBConnection = async () => {
 
-    try {
+  //   try {
 
-      const db = SQLite.openDatabaseSync('chatApp.db');
+  //     const db = SQLite.openDatabaseSync('chatApp.db');
 
-      console.log("Database connection successful!");
+  //     console.log("Database connection successful!");
 
-      return db;
+  //     return db;
 
-    } catch (error) {
+  //   } catch (error) {
 
-      console.error("Failed to open database:", error);
+  //     console.error("Failed to open database:", error);
 
-      return null;
+  //     return null;
 
-    }
+  //   }
 
-  };
+  // };
 
   useEffect(() => {
 
@@ -42,8 +47,11 @@ export default function RootLayout() {
 
 
 
-      const db = await getDBConnection()
-
+      const db = await getDB()
+      if (!db) {
+        console.error("DB not initialized");
+        return [];
+      }
       if (db) {
 
         //const exists = await checkIfUserExistsInDB()
@@ -105,11 +113,7 @@ export default function RootLayout() {
 
           } catch (err) {
 
-
-
-            alert(`Network error : ${err}`)
-
-
+            router.push('/(tabs)')
 
           }
 
@@ -134,6 +138,14 @@ export default function RootLayout() {
     check()
 
   }, [])
+
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading database...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F2F0EF' }}>

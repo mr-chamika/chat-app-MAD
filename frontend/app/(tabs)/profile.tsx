@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Logout } from '../../services/database'
 
 const Icon = ({ name, style }: { name: string; style?: any }) => (
   <Text style={[{ fontSize: 22, width: 25 }, style]}>{name}</Text>
@@ -245,7 +246,10 @@ const MyProfileScreen = () => {
           <View className="p-4 mt-8 mb-4">
             <TouchableOpacity
               className="bg-red-500/10 py-3 rounded-full items-center"
-              onPress={() => router.replace("/(auth)")}
+              onPress={async () => {
+                await Logout();
+                router.replace("/(auth)");
+              }}
             >
               <Text className="text-red-500 font-bold text-base">Logout</Text>
             </TouchableOpacity>

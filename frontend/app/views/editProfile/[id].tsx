@@ -14,6 +14,14 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === "android") {
+    setTimeout(() => Alert.alert(title, message), 100);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 const EditProfile = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -26,7 +34,7 @@ const EditProfile = () => {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow photo library access.");
+      showAlert("Permission needed", "Please allow photo library access.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -42,7 +50,7 @@ const EditProfile = () => {
 
   const onSave = () => {
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert("Missing info", "Please enter first and last name.");
+      showAlert("Missing info", "Please enter first and last name.");
       return;
     }
     console.log("Saved profile:", { id, firstName, lastName, avatarUri });

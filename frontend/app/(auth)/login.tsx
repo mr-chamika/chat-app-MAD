@@ -15,7 +15,7 @@ import { Image, ImageBackground } from 'expo-image';
 import { cssInterop } from 'nativewind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from "jwt-decode";
-import { initDB, saveUserToDB, User } from '../../services/database'; // Adjust path if needed
+import { saveUserToDB, User, dbReady } from '../../services/database'; // Adjust path if needed
 
 cssInterop(Image, { className: "style" });
 
@@ -35,11 +35,6 @@ const Login: React.FC = () => {
   const [step, setStep] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  useEffect(() => {
-    // Ensure the database and tables are ready when the component mounts
-    initDB();
-  }, []);
-
   const handleSendOtp = async () => {
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
       Alert.alert("Error", "Please enter a valid email address.");
@@ -54,7 +49,7 @@ const Login: React.FC = () => {
       });
 
       if (otpRes.ok) {
-        Alert.alert("OTP Sent", "An OTP has been sent to your email!");
+        //Alert.alert("OTP Sent", "An OTP has been sent to your email!");
         setStep(1);
       } else {
         Alert.alert("Error", "Failed to send OTP. This email might not be registered.");
@@ -68,6 +63,13 @@ const Login: React.FC = () => {
   };
 
   const handleVerifyOtp = async () => {
+
+    if (!dbReady) {
+      Alert.alert("Please wait", "Database is still loading. Try again in a moment.");
+      setIsLoading(false);
+      return;
+    }
+
     const otpCode = otp.join("");
     if (otpCode.length !== 6) {
       Alert.alert("Error", "Please enter the complete 6-digit OTP.");
@@ -75,6 +77,7 @@ const Login: React.FC = () => {
     }
     setIsLoading(true);
     try {
+      console.log(email, otpCode)
       // Step 1: Verify the OTP is correct
       const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
         method: "POST",
@@ -83,46 +86,53 @@ const Login: React.FC = () => {
       });
 
       const verifyText = await verifyRes.text();
+      console.log('res', verifyText)
       if (!verifyRes.ok || !verifyText.includes("successfully")) {
         throw new Error(verifyText || "Invalid OTP ❌");
+
+      } else {
+
+
+        // Step 2: OTP is valid, now perform the actual login to get user data and token
+        const loginRes = await fetch('https://chatappbackend-production-e023.up.railway.app/user/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        if (!loginRes.ok) {
+          throw new Error("Login failed after OTP verification.");
+        }
+
+        const data = await loginRes.json();
+        if (!data || !data.token) {
+          throw new Error("Could not retrieve session token.");
+        } else {
+
+
+
+          // Step 3: Decode the token to get user details
+          const decodedToken = jwtDecode<Token>(data.token);
+          const userToSave: User = {
+            _id: decodedToken.id,
+            firstName: decodedToken.firstName || decodedToken.name.split(" ")[0],
+            lastName: decodedToken.lastName || decodedToken.name.split(" ")[1] || '',
+            email: decodedToken.email,
+            profilePic: "" // Add profile pic if available in token
+          };
+
+          // Step 4: Save user to the local SQLite database using the queued function
+          await saveUserToDB(userToSave);
+
+          // Step 5: Save the token to AsyncStorage
+          await AsyncStorage.setItem('token', data.token);
+
+          // Step 6: Finally, navigate to the main app
+          //Alert.alert("Success!", "You have been logged in successfully.");
+          router.replace("/(tabs)");
+
+        }
       }
-
-      // Step 2: OTP is valid, now perform the actual login to get user data and token
-      const loginRes = await fetch('https://chatappbackend-production-e023.up.railway.app/user/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      if (!loginRes.ok) {
-        throw new Error("Login failed after OTP verification.");
-      }
-
-      const data = await loginRes.json();
-      if (!data || !data.token) {
-        throw new Error("Could not retrieve session token.");
-      }
-
-      // Step 3: Decode the token to get user details
-      const decodedToken = jwtDecode<Token>(data.token);
-      const userToSave: User = {
-        _id: decodedToken.id,
-        firstName: decodedToken.firstName || decodedToken.name.split(" ")[0],
-        lastName: decodedToken.lastName || decodedToken.name.split(" ")[1] || '',
-        email: decodedToken.email,
-        profilePic: "" // Add profile pic if available in token
-      };
-
-      // Step 4: Save user to the local SQLite database using the queued function
-      await saveUserToDB(userToSave);
-
-      // Step 5: Save the token to AsyncStorage
-      await AsyncStorage.setItem('token', data.token);
-
-      // Step 6: Finally, navigate to the main app
-      Alert.alert("Success!", "You have been logged in successfully.");
-      router.replace("/(tabs)");
-
     } catch (err: any) {
       console.error("Verify OTP or Login error:", err);
       Alert.alert("Error", err.message || "An unknown error occurred.");
@@ -139,7 +149,7 @@ const Login: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
       });
-      Alert.alert("OTP Sent", "A new OTP has been sent to your email");
+      // Alert.alert("OTP Sent", "A new OTP has been sent to your email");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } catch (err) {
