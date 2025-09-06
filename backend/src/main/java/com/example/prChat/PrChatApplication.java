@@ -10,7 +10,7 @@ public class PrChatApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(PrChatApplication.class, args);
-		System.out.println("PR Chat backend is online ...");
+		System.out.println("Relavent backend is in chatAppBackend repo in mr-chamika. use it...........");
 	}
 
 }
