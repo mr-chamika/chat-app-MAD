@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SQLite from 'expo-sqlite';
 import { Alert, Platform } from 'react-native';
 
@@ -129,6 +130,28 @@ export const getMessagesByChatId = async (chatId: string): Promise<Message[]> =>
     return [];
   }
 };
+export const getUserById = async (userId: string) => {
+  const db = await getDB();
+  const rows = await db.getAllAsync('SELECT * FROM users WHERE _id = ?', userId);
+  return rows.length > 0 ? rows[0] : null;
+};
+
+export const updateUserInDB = async (user: { _id: string; firstName: string; lastName: string; profilePic?: string }) => {
+
+  const db = await getDB();
+  await db.runAsync(
+    "UPDATE users SET firstName = ?, lastName = ?, profilePic = ? WHERE _id = ?",
+    user.firstName, user.lastName, user.profilePic ?? null, user._id
+  );
+
+  const rows = await db.getAllAsync('SELECT * FROM users WHERE _id = ?', user._id);
+  if (rows.length > 0) {
+    console.log("Updated user record:", rows[0]);
+  } else {
+    console.log("No user found with id:", user._id);
+  }
+
+};
 
 export const getChatById = async (chatId: string): Promise<Chat | null> => {
   if (Platform.OS === "web") {
@@ -160,7 +183,7 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
     return null;
   } catch (err) {
     //console.error("Failed to load chat:", err);
-    alert("Please restart the app")
+    // alert("Please restart the app")
 
     return null;
   }
@@ -173,6 +196,7 @@ export const getChatById = async (chatId: string): Promise<Chat | null> => {
 export const Logout = async (): Promise<void> => {
   const db = await getDB();
   await db.runAsync('DELETE FROM users');
+  await AsyncStorage.removeItem("token")
   console.log('Logged out');
 };
 
@@ -197,9 +221,24 @@ export const checkIfUserExists = async (db: SQLite.SQLiteDatabase) => {
     }
   } catch (error) {
     //console.error("Error checking for user:", error);
-    alert("Please restart the app")
+    //alert("Please restart the app")
 
     return null;
+  }
+};
+
+export const updateUserEmailInDB = async (userId: string, newEmail: string): Promise<void> => {
+  const db = await getDB();
+  await db.runAsync(
+    "UPDATE users SET email = ? WHERE _id = ?",
+    newEmail, userId
+  );
+  // Optional: log the updated user
+  const rows = await db.getAllAsync('SELECT * FROM users WHERE _id = ?', userId);
+  if (rows.length > 0) {
+    console.log("Updated user email:", rows[0]);
+  } else {
+    console.log("No user found with id:", userId);
   }
 };
 

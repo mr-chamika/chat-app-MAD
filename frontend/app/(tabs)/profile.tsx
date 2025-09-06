@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import NetInfo from "@react-native-community/netinfo";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   SafeAreaView,
@@ -10,9 +11,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Logout } from '../../services/database'
+import { useFocusEffect, useRouter } from "expo-router";
+import { Logout, updateUserEmailInDB } from '../../services/database'
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { jwtDecode } from "jwt-decode";
 
 const Icon = ({ name, style }: { name: string; style?: any }) => (
   <Text style={[{ fontSize: 22, width: 25 }, style]}>{name}</Text>
@@ -27,14 +31,61 @@ const MyProfileScreen = () => {
   const [otpError, setOtpError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+  const [profile, setProfile] = useState<{ name: string; email: string; avatar: string; userId: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const [x, setx] = useState("")
 
-  const myProfile = {
-    name: "Maya",
-    avatarUrl: "https://i.pravatar.cc/150?u=a042581f4e29026704a",
-    email: "maya.dev@example.com",
 
-    qrCodeData: JSON.stringify({ userId: "maya_dev_123", name: "Maya" }),
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected ?? true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchProfile = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("token");
+      let userId = null;
+      if (token) {
+        const decoded = jwtDecode<{ id: string }>(token);
+        userId = decoded.id;
+        const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/user/get?id=${userId}`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        const data = await res.json();
+        setProfile({
+          name: data.name,
+          email: data.email,
+          avatar: data.profilePic || "https://i.pravatar.cc/150?u=a042581f4e29026704a",
+          userId: data._id,
+        });
+      }
+    } catch (err) {
+      setProfile(null);
+      Alert.alert("Connect to the internet", "Data cannot be loaded from the database. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isConnected) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      fetchProfile();
+    }, [isConnected])
+  );
+
 
   const validateEmail = () => {
     let error = "";
@@ -55,38 +106,143 @@ const MyProfileScreen = () => {
     return () => clearTimeout(timer);
   }, [showOtp, resendTimer]);
 
-  const handleGetOtp = () => {
+  const handleSendOtp = async () => {
     if (!validateEmail()) {
-      Alert.alert("Invalid Email", emailError);
+
       return;
     }
-    Alert.alert("OTP Sent", `OTP sent to ${newEmail}`);
-    setShowOtp(true);
-    setResendTimer(30);
+    setIsLoading(true);
+    try {
+      const otpRes = await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail })
+      });
+
+      if (otpRes.ok) {
+        setShowOtp(true);
+        setResendTimer(30);
+        setOtp("");
+        inputRefs.current[0]?.focus();
+      } else {
+        Alert.alert("Error", "Failed to send OTP. This email might not be registered.");
+      }
+    } catch (err) {
+      Alert.alert("Network Error", "Could not connect to the server.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendOtp = () => {
-    Alert.alert("OTP Sent", `OTP resent to ${newEmail}`);
-    setOtp("");
-    setResendTimer(30);
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    try {
+      await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail })
+      });
+      setOtp("");
+      inputRefs.current[0]?.focus();
+      setResendTimer(30);
+    } catch (err) {
+      Alert.alert("Error", "Failed to resend OTP.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOtp = () => {
+  const checkEmail = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("https://chatappbackend-production-e023.up.railway.app/user/email", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: profile?.userId, x: profile?.email, email: newEmail })
+      });
+      const data = await res.text()
+
+      if (res.ok) {
+
+        console.log('data', data)
+        if (data.toLowerCase().includes("success")) {
+
+          handleSendOtp()
+          setx("")
+
+        } else {
+          setEmailError("")
+          setx(data)
+          return;
+
+        }
+
+      } else {
+
+        setEmailError("")
+        setx(data)
+        return;
+
+      }
+
+    } catch (err) {
+      Alert.alert("Error", "Failed to resend OTP.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) {
+      Alert.alert("Error", "Please enter the complete 6-digit OTP.");
+      return;
+    }
     setIsVerifying(true);
     setOtpError("");
-    setTimeout(() => {
-      setIsVerifying(false);
-      if (otp === "123456") {
-        Alert.alert("Success", "Email changed successfully!");
+    try {
+      const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail, otp })
+      });
+
+      const verifyText = await verifyRes.text();
+      if (!verifyRes.ok || !verifyText.includes("successfully")) {
+        setOtpError(verifyText || "Invalid OTP ❌");
+      }
+      // Update email using /user/update
+      const updateRes = await fetch("https://chatappbackend-production-e023.up.railway.app/user/update", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: profile?.userId,
+          email: newEmail
+        })
+      });
+
+      if (!updateRes.ok) {
+        Alert.alert("Error", "Failed to update email.");
+      } else {
+        // Refetch profile to show new email
+        await fetchProfile();
+        if (profile) {
+          await updateUserEmailInDB(profile.userId, newEmail);
+        }
         setShowOtp(false);
         setOtp("");
         setNewEmail("");
         setOtpError("");
-        // You can update myProfile.email here if needed
-      } else {
-        setOtpError("Invalid OTP. Try again.");
+        setx("")
+        await Logout();
+        router.replace("/(auth)/login");
+
       }
-    }, 800);
+    } catch (err) {
+      setOtpError("Network error or invalid OTP.");
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const ProfileOption = ({
@@ -107,7 +263,7 @@ const MyProfileScreen = () => {
       <Wrapper
         className="flex-row items-center py-4"
         {...(onPress
-          ? { onPress, accessbilityRole: "button", activeOpacity: 0.7 }
+          ? { onPress, accessibilityRole: "button", activeOpacity: 0.7 }
           : {})}
       >
         <Icon name={icon} style={{ color: "#4B5563" }} />
@@ -130,21 +286,42 @@ const MyProfileScreen = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 32 }}
         >
+          {!loading && !profile && (
+            <View className="items-center mt-10">
+              <Text className="text-red-500 text-lg font-bold">
+                Connect to the internet to load your profile.
+              </Text>
+            </View>
+          )}
           <View className="flex-row items-center p-4 bg-gray-50">
             <Text className="flex-1 text-center text-xl font-bold text-gray-800 mr-8">
               Profile
             </Text>
           </View>
 
-          <View className="items-center p-6">
-            <Image
-              source={{ uri: myProfile.avatarUrl }}
-              className="w-28 h-28 rounded-full border-4 border-white shadow-md"
-            />
-            <Text className="text-3xl font-bold text-gray-800 mt-4">
-              {myProfile.name}
-            </Text>
-          </View>
+          {loading ? (
+            <ActivityIndicator size="large" color="#4895ef" style={{ marginTop: 40 }} />
+          ) : profile && (
+            <View className="items-center p-6">
+              <Image
+                source={profile.avatar && profile.avatar.trim() !== "" ? { uri: profile.avatar } : require("../../assets/images/user2.png")}
+                className="w-28 h-28 rounded-full border-4 border-white shadow-md"
+              />
+              <Text className="text-3xl font-bold text-gray-800 mt-4">
+                {profile.name}
+              </Text>
+              <Text className="text-base text-gray-600 mt-2">
+                {profile.name
+                  ? "@" +
+                  profile.name
+                    .split(" ")
+                    .map(part => part && part.toLowerCase())
+                    .filter(Boolean)
+                    .join("")
+                  : ""}
+              </Text>
+            </View>
+          )}
 
           <View className="mx-4 mt-4">
             <Text className="text-sm font-semibold text-gray-500 px-4 mb-2">
@@ -154,12 +331,7 @@ const MyProfileScreen = () => {
               <ProfileOption
                 icon="👤"
                 label="Edit Profile"
-                onPress={() =>
-                  router.push({
-                    pathname: "/views/editProfile/[id]",
-                    params: { id: "maya_dev_123" },
-                  })
-                }
+                onPress={() => profile && router.push(`/views/editProfile/${profile.userId}`)}
               />
             </View>
           </View>
@@ -172,7 +344,7 @@ const MyProfileScreen = () => {
               <ProfileOption
                 icon="📧"
                 label="Email"
-                value={myProfile.email}
+                value={profile?.email}
                 showArrow={false}
               />
               <View className="border-t border-gray-100" />
@@ -189,11 +361,18 @@ const MyProfileScreen = () => {
               {emailError ? (
                 <Text className="text-red-500 mb-2">{emailError}</Text>
               ) : null}
+              {x !== "" &&
+                <Text className="text-red-500 mb-2">{x}</Text>
+
+              }
               <TouchableOpacity
                 className="bg-[#4895ef] py-3 rounded-xl items-center mb-4"
-                onPress={handleGetOtp}
+                onPress={checkEmail}
+                disabled={isLoading}
               >
-                <Text className="text-white font-bold text-base">Get OTP</Text>
+                <Text className="text-white font-bold text-base">
+                  {isLoading ? "Sending OTP..." : "Get OTP"}
+                </Text>
               </TouchableOpacity>
               {showOtp && (
                 <View className="mb-4">
@@ -201,6 +380,7 @@ const MyProfileScreen = () => {
                     Enter OTP
                   </Text>
                   <TextInput
+                    ref={el => { inputRefs.current[0] = el; }}
                     className="h-12 border border-gray-200 rounded-xl px-4 text-base bg-gray-50 text-gray-800 mb-2"
                     placeholder="XXXXXX"
                     value={otp}
@@ -232,9 +412,10 @@ const MyProfileScreen = () => {
                     <TouchableOpacity
                       onPress={handleResendOtp}
                       className="mt-2"
+                      disabled={isLoading}
                     >
                       <Text className="text-[#4895ef] font-bold text-center">
-                        Resend OTP
+                        {isLoading ? "Resending..." : "Resend OTP"}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -248,7 +429,7 @@ const MyProfileScreen = () => {
               className="bg-red-500/10 py-3 rounded-full items-center"
               onPress={async () => {
                 await Logout();
-                router.replace("/(auth)");
+                router.replace("/(auth)/login");
               }}
             >
               <Text className="text-red-500 font-bold text-base">Logout</Text>

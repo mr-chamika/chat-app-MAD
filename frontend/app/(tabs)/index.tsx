@@ -6,7 +6,7 @@ import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 // Note: We assume the database.ts file is now refactored for the classic API
-import { loadChatsFromDB, saveChatsToDB, clearChatsInDB, type Chat } from '../../services/database';
+import { loadChatsFromDB, saveChatsToDB, clearChatsInDB, type Chat, getUserById, type User } from '../../services/database';
 
 // --- UI Components (No changes needed here) ---
 
@@ -18,6 +18,14 @@ interface ChatListItemProps {
 
 const ChatListItem: React.FC<ChatListItemProps> = ({ item, onPress, currentUserId }) => {
   const router = useRouter();
+  const [otherUser, setOtherUser] = useState<User | null>(null);
+
+  const getOtherUserId = (chat: Chat, currentUserId: string): string | undefined => {
+    const participants = Array.isArray(chat.participants)
+      ? chat.participants
+      : JSON.parse(chat.participants || "[]");
+    return participants.find((id: string) => id !== currentUserId);
+  };
 
   const getOtherParticipantName = (chat: Chat, currentUserId: string): string => {
     // Parse participants as array if not already
@@ -37,15 +45,31 @@ const ChatListItem: React.FC<ChatListItemProps> = ({ item, onPress, currentUserI
     }
     return names[0] || "Unknown";
   };
-
+  useEffect(() => {
+    const loadOtherUser = async () => {
+      const otherUserId = getOtherUserId(item, currentUserId);
+      if (otherUserId) {
+        const user = await getUserById(otherUserId);
+        setOtherUser(user as User | null); // <-- Fix: cast to User | null
+      }
+    };
+    loadOtherUser();
+  }, [item, currentUserId]);
   const displayName = getOtherParticipantName(item, currentUserId);
 
   return (
     <View className="flex-row items-center p-3 border-b border-gray-200 bg-white">
-      <TouchableOpacity onPress={() => router.push(`/views/userProfile/${item._id}`)} className="relative mr-4">
-        <Image source={require("../../assets/images/user2.png")} className="w-14 h-14 rounded-full" />
-        {item.isOnline && <View className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />}
-      </TouchableOpacity>
+      {/* <TouchableOpacity onPress={() => router.push(`/views/userProfile/${getOtherUserId(item, currentUserId)}`)} className="relative mr-4"> */}
+      <Image
+        source={
+          otherUser?.profilePic
+            ? { uri: otherUser.profilePic }
+            : require("../../assets/images/user2.png")
+        }
+        className="w-14 h-14 rounded-full mr-6"
+      />
+      {item.isOnline && <View className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />}
+      {/* </TouchableOpacity> */}
       <TouchableOpacity onPress={onPress} className="flex flex-1 flex-row">
         <View className="flex-1 gap-3">
           <Text className="font-bold text-base text-gray-800" numberOfLines={1}>{displayName}</Text>
@@ -164,7 +188,7 @@ const Index: React.FC = () => {
       }
     } catch (err) {
       //console.log("Error loading chats:", err);
-      alert("Please restart the app")
+      //alert("Please restart the app")
     } finally {
       setIsLoading(false);
     }

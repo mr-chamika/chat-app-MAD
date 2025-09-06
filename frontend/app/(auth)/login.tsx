@@ -34,10 +34,19 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const [err, setErr] = useState("")
 
+  const validateEmail = (email: string) => {
+    if (!email.trim()) return "Email is required.";
+    // Simple regex for email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email address is invalid.";
+    return "";
+  };
   const handleSendOtp = async () => {
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address.");
+    const emailError = validateEmail(email);
+    if (emailError || !email.trim()) {
+      //Alert.alert("Error", emailError);
+      setErr(emailError)
       return;
     }
     setIsLoading(true);
@@ -50,7 +59,15 @@ const Login: React.FC = () => {
 
       if (otpRes.ok) {
         //Alert.alert("OTP Sent", "An OTP has been sent to your email!");
-        setStep(1);
+        if (await otpRes.text() == "Email not found") {
+
+          setErr("Email not found, Sign Up first.");
+          return;
+        } else {
+
+          setStep(1);
+
+        }
       } else {
         Alert.alert("Error", "Failed to send OTP. This email might not be registered.");
       }
@@ -61,7 +78,6 @@ const Login: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   const handleVerifyOtp = async () => {
 
     if (!dbReady) {
@@ -77,7 +93,7 @@ const Login: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      alert('begin')
+      //alert('begin')
       // Step 1: Verify the OTP is correct
       const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
         method: "POST",
@@ -86,7 +102,7 @@ const Login: React.FC = () => {
       });
 
       const verifyText = await verifyRes.text();
-      alert('res' + verifyText)
+      //alert('res' + verifyText)
       if (!verifyRes.ok || !verifyText.includes("successfully")) {
         throw new Error(verifyText || "Invalid OTP ❌");
 
@@ -209,6 +225,10 @@ const Login: React.FC = () => {
                       placeholderTextColor="#9CA3AF"
                       autoComplete="email"
                     />
+                    {err !== "" &&
+                      <Text className="text-red-500 mb-2">{err}</Text>
+
+                    }
                     <TouchableOpacity
                       className="bg-[#4895ef] py-4 rounded-xl items-center mt-2 shadow-lg active:scale-95"
                       onPress={handleSendOtp}

@@ -59,16 +59,18 @@ const Index = () => {
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-
+  const validateEmail = (email: string) => {
+    if (!email.trim()) return "Email is required.";
+    // Simple regex for email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email address is invalid.";
+    return "";
+  };
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!firstName.trim()) newErrors.firstName = "First name is required.";
     if (!lastName.trim()) newErrors.lastName = "Last name is required.";
-    if (!email.trim()) {
-      newErrors.email = "Email is required.";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email address is invalid.";
-    }
+    const emailError = validateEmail(email);
+    if (emailError) newErrors.email = emailError;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };

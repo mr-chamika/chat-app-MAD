@@ -87,9 +87,9 @@ const ChatHeader = ({ user }: { user: Chat }) => {
         </Text>
         {user.isOnline && <Text className="text-sm text-green-600">Online</Text>}
       </View>
-      <TouchableOpacity className="p-2">
+      {/* <TouchableOpacity className="p-2">
         <Text className="text-2xl font-bold text-gray-600">⋮</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };

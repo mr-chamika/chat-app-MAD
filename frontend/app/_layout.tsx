@@ -23,7 +23,7 @@ export default function RootLayout() {
   }, []);
   useEffect(() => {
     if (dbReady) {
-      alert('db running');
+      //alert('db running');
     }
     // Remove the else part!
   }, [dbReady]);
