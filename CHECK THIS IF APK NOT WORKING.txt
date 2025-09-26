@@ -1,0 +1,59 @@
+IF CURRENT APK NOT WORKING, USE THESE INSTRUCTOINS
+====================================================
+
+*Requirements
+
+MongoDB,MongoDB compass
+Java,IDE to run java backend(IntelliJ IDEA)
+React-Native
+Two mobile devices to usb debug connect with laptop.
+
+
+FRONTEND SETUP
+===============
+
+1.Clone the repo (https://github.com/mr-chamika/chat-app-MAD.git).
+
+2.Open frontend folder inside of cloned folder using vs code.
+
+3.Find and replace "https://backend-production-e712.up.railway.app" with "http://localhost:8080".
+
+4.Open terminal and type "npm install" then press enter.
+
+
+BACKEND SETUP
+===============
+
+1.Open IntelliJ IDEA and open the backend folder that inside of the cloned folder.
+
+2.Run the backend (Can see "PR Chat backend is online ..." if success).
+
+** If any error occurs when trying to Login or SignUp, 
+
+   use "spring.data.mongodb.uri = mongodb://localhost:27017/prchat" instead of
+
+   "spring.data.mongodb.uri = mongodb+srv://hasithchamika2001:Atlas4321@cluster0.uj1pkoj.mongodb.net/prchat?retryWrites=true&w=majority&appName=Cluster0"
+
+   in the src/main/resources/application.properties file
+
+
+DEVICE SETUP
+=============
+
+1.Connect both devices to laptop using 2 usb cables(both devices SHOULD show in devices and drives section in This PC).
+
+2.Turn on USB Debugging using developer options in both devices (In some devices should enable install via USB).
+
+3.In terminal of vs code type "npx expo prebuild" and press enter.
+
+4.After it successfully completed, then type "npx expo run:android" and press enter. Make sure USB Debugging allowed in both devices.
+
+5.After "› Press ? │ show all commands" showing in terminal,Open another terminal and type "npm run install-and-reverse" and press enter. It will successfully install the app in both devices.
+
+6.Then open the app from 2 devices.
+
+7.SignUp and Login as shown in the demo video.
+
+
+Contact No : 0786715765
+
