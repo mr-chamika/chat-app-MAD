@@ -51,7 +51,7 @@ const Login: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      const otpRes = await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+      const otpRes = await fetch("https://backend-production-e712.up.railway.app/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -95,7 +95,7 @@ const Login: React.FC = () => {
     try {
       //alert('begin')
       // Step 1: Verify the OTP is correct
-      const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
+      const verifyRes = await fetch(`https://backend-production-e712.up.railway.app/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: otpCode })
@@ -110,7 +110,7 @@ const Login: React.FC = () => {
 
 
         // Step 2: OTP is valid, now perform the actual login to get user data and token
-        const loginRes = await fetch('https://chatappbackend-production-e023.up.railway.app/user/login', {
+        const loginRes = await fetch('https://backend-production-e712.up.railway.app/user/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
@@ -160,7 +160,7 @@ const Login: React.FC = () => {
   const handleResendOTP = async () => {
     setIsLoading(true);
     try {
-      await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+      await fetch("https://backend-production-e712.up.railway.app/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })

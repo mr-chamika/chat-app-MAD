@@ -55,7 +55,7 @@ const MyProfileScreen = () => {
       if (token) {
         const decoded = jwtDecode<{ id: string }>(token);
         userId = decoded.id;
-        const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/user/get?id=${userId}`, {
+        const res = await fetch(`https://backend-production-e712.up.railway.app/user/get?id=${userId}`, {
           headers: { 'Content-Type': 'application/json' },
         });
         if (!res.ok) throw new Error("Failed to fetch profile");
@@ -113,7 +113,7 @@ const MyProfileScreen = () => {
     }
     setIsLoading(true);
     try {
-      const otpRes = await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+      const otpRes = await fetch("https://backend-production-e712.up.railway.app/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: newEmail })
@@ -137,7 +137,7 @@ const MyProfileScreen = () => {
   const handleResendOtp = async () => {
     setIsLoading(true);
     try {
-      await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+      await fetch("https://backend-production-e712.up.railway.app/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: newEmail })
@@ -155,7 +155,7 @@ const MyProfileScreen = () => {
   const checkEmail = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("https://chatappbackend-production-e023.up.railway.app/user/email", {
+      const res = await fetch("https://backend-production-e712.up.railway.app/user/email", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: profile?.userId, x: profile?.email, email: newEmail })
@@ -201,7 +201,7 @@ const MyProfileScreen = () => {
     setIsVerifying(true);
     setOtpError("");
     try {
-      const verifyRes = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
+      const verifyRes = await fetch(`https://backend-production-e712.up.railway.app/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: newEmail, otp })
@@ -212,7 +212,7 @@ const MyProfileScreen = () => {
         setOtpError(verifyText || "Invalid OTP ❌");
       }
       // Update email using /user/update
-      const updateRes = await fetch("https://chatappbackend-production-e023.up.railway.app/user/update", {
+      const updateRes = await fetch("https://backend-production-e712.up.railway.app/user/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

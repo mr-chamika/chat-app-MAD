@@ -154,7 +154,7 @@ const ChatScreen = () => {
   const fetchChatFromServer = async () => {
     if (!id) return;
     try {
-      const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/chat/get?id=${id}`);
+      const res = await fetch(`https://backend-production-e712.up.railway.app/chat/get?id=${id}`);
       if (res.ok) {
         const data: Chat = await res.json();
         const syncedChat = { ...data, isSynced: true };
@@ -169,7 +169,7 @@ const ChatScreen = () => {
   const fetchMessagesFromServer = async () => {
     if (!id) return;
     try {
-      const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/message/get?id=${id}`);
+      const res = await fetch(`https://backend-production-e712.up.railway.app/message/get?id=${id}`);
       if (res.ok) {
         const data: Message[] = await res.json();
         setMessageList(data.slice().reverse());
@@ -232,7 +232,7 @@ const ChatScreen = () => {
     const networkState = await NetInfo.fetch();
     if (networkState.isConnected) {
       try {
-        const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/message/create`, {
+        const res = await fetch(`https://backend-production-e712.up.railway.app/message/create`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newMessage),

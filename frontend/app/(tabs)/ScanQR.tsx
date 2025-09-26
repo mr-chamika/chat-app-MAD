@@ -102,7 +102,7 @@ const ScanQRScreen = () => {
       for (const chat of unsyncedChats) {
         console.log('user name', chat.userName)
         try {
-          const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/chat/creates`, {
+          const res = await fetch(`https://backend-production-e712.up.railway.app/chat/creates`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -232,7 +232,7 @@ const ScanQRScreen = () => {
     };
 
     try {
-      const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/chat/create?inviteTo=${parse.id}&scan=${userId}&userName=${combinedUserNames}`);
+      const res = await fetch(`https://backend-production-e712.up.railway.app/chat/create?inviteTo=${parse.id}&scan=${userId}&userName=${combinedUserNames}`);
 
       if (res.ok) {
         const newServerId = await res.text();

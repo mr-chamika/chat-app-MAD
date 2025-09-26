@@ -85,7 +85,7 @@ const Index = () => {
           email,
           profilePic: " ",
         };
-        const res = await fetch('https://chatappbackend-production-e023.up.railway.app/user/signup', {
+        const res = await fetch('https://backend-production-e712.up.railway.app/user/signup', {
           method: 'POST',
           body: JSON.stringify(payloadToSend),
           headers: { 'Content-Type': 'application/json' }
@@ -143,7 +143,7 @@ const Index = () => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`https://chatappbackend-production-e023.up.railway.app/otp/verify`, {
+      const response = await fetch(`https://backend-production-e712.up.railway.app/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: otpCode })
@@ -179,7 +179,7 @@ const Index = () => {
   const handleResendOTP = async () => {
     setIsLoading(true);
     try {
-      const otpRes = await fetch("https://chatappbackend-production-e023.up.railway.app/otp/send", {
+      const otpRes = await fetch("https://backend-production-e712.up.railway.app/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })

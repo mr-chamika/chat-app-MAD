@@ -71,7 +71,7 @@ export default function RootLayout() {
       }
 
       try {
-        const res = await fetch('https://chatappbackend-production-e023.up.railway.app/user/login', {
+        const res = await fetch('https://backend-production-e712.up.railway.app/user/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: exists.email })

@@ -164,7 +164,7 @@ const Index: React.FC = () => {
         try {
           console.log('chatsssss')
 
-          const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/chat/list?id=${userId}`);
+          const res = await fetch(`https://backend-production-e712.up.railway.app/chat/list?id=${userId}`);
           if (!res.ok) throw new Error(`Server error ${res.status}`);
 
           const serverChats: Chat[] = await res.json();

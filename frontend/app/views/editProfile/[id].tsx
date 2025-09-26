@@ -51,7 +51,7 @@ const EditProfile = () => {
     }
     const fetchUser = async () => {
       try {
-        const res = await fetch(`https://chatappbackend-production-e023.up.railway.app/user/get?id=${id}`);
+        const res = await fetch(`https://backend-production-e712.up.railway.app/user/get?id=${id}`);
         if (!res.ok) throw new Error("Failed to fetch user");
         const data = await res.json();
         const [first, ...lastArr] = (data.name || "").split(" ");
@@ -97,7 +97,7 @@ const EditProfile = () => {
       return;
     }
     try {
-      const res = await fetch("https://chatappbackend-production-e023.up.railway.app/user/update", {
+      const res = await fetch("https://backend-production-e712.up.railway.app/user/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
